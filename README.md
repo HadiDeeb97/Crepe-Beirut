@@ -39,10 +39,10 @@ npx serve .
 
 Any static host works. Two free options:
 
-- **GitHub Pages:** push this folder to its own repository, then in *Settings → Pages* choose the
-  branch and the root folder.
-- **Netlify / Cloudflare Pages:** drag and drop this folder, or connect the repository with
-  no build command and this folder as the publish directory.
+- **GitHub Pages:** in this repository's *Settings → Pages*, set *Source* to *Deploy from a branch*,
+  then pick `main` and `/ (root)`. The site appears at `https://hadideeb97.github.io/crepe-beirut/`.
+- **Netlify / Cloudflare Pages:** connect this repository with no build command and the
+  repository root as the publish directory.
 
 ## Check before going live
 
