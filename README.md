@@ -21,7 +21,7 @@ database for the menu content and orders. It works as a **Cloudflare Worker** (`
    - The Worker must be named **`crepe-beirut`**, the same as `name` in `wrangler.jsonc`. If yours has a
      different name, change `name` in `wrangler.jsonc` to match it.
 2. **Deploy.** Every push to `main` deploys. On the first deploy, Wrangler creates the D1 database
-   `crepe-beirut` and connects it as `DB`. You don't need to run any SQL; the tables create themselves.
+   `crepe-beirut` and connects it as `CREPE_DB`. You don't need to run any SQL; the tables create themselves.
    Don't add the database binding by hand, because deploys use `wrangler.jsonc`.
 3. **Set the admin password:** *Workers & Pages → crepe-beirut → Settings → Variables and Secrets → Add*,
    type **Secret**, name **`ADMIN_PASSWORD`**, a long password only staff know, then **Deploy**.
