@@ -158,6 +158,8 @@ textarea.input, .field textarea { resize: vertical; min-height: 72px; line-heigh
 .setup-steps { margin: 0; padding-left: 20px; display: grid; gap: 14px; font-size: 14.5px; }
 .setup-steps li.done { color: var(--ink-2); }
 .setup-steps li.done b::after { content: " ✓ done"; color: var(--st-done); font-weight: 700; }
+.setup-steps li.missing b::after { content: " ✗ missing"; color: var(--danger); font-weight: 700; }
+.setup-status { padding: 12px 14px; border-radius: var(--r-sm); background: var(--st-new-bg); color: var(--ink); font-size: 14px; font-weight: 600; text-align: left; }
 code { font-size: 13px; background: var(--tint); padding: 1px 6px; border-radius: 5px; }
 
 /* ---------- App shell ---------- */

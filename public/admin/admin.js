@@ -799,21 +799,38 @@ async function enterApp() {
   startPolling();
 }
 
+function showSetup(me, reason) {
+  const status = $("[data-setup-status]");
+  $$("[data-setup]").forEach((li) => {
+    const known = me && me.setup;
+    li.classList.toggle("done", !!(known && me.setup[li.dataset.setup]));
+    li.classList.toggle("missing", !!(known && !me.setup[li.dataset.setup]));
+  });
+  status.hidden = !reason;
+  status.textContent = reason || "";
+  showView("setup");
+}
+
 async function boot() {
+  let me;
   try {
-    const r = await fetch("/api/admin/me", { credentials: "same-origin" });
-    if (!r.ok) throw new Error();
-    const me = await r.json();
-    if (!me.setup.database || !me.setup.password) {
-      $$("[data-setup]").forEach((li) => li.classList.toggle("done", !!me.setup[li.dataset.setup]));
-      showView("setup");
+    const r = await fetch("/api/admin/me", { credentials: "same-origin", cache: "no-store" });
+    const type = r.headers.get("content-type") || "";
+    if (!r.ok || !type.includes("application/json")) {
+      showSetup(null, `The admin's server code isn't running (the check returned ${r.status}${type.includes("html") ? ", a web page instead of data" : ""}). This means the latest deployment didn't include it: check that it finished, and that the project is deployed from this repository.`);
       return;
     }
-    if (!me.signedIn) { showView("login"); return; }
-    await enterApp();
+    me = await r.json();
   } catch {
-    $$("[data-setup]").forEach((li) => li.classList.remove("done"));
-    showView("setup");
+    showSetup(null, "Couldn't reach the admin's server code. Check your connection, then check that the latest deployment finished.");
+    return;
   }
+  if (!me.setup.database || !me.setup.password) {
+    const missing = [!me.setup.database && "the database", !me.setup.password && "the admin password"].filter(Boolean).join(" and ");
+    showSetup(me, "The server is running, but " + missing + (missing.includes(" and ") ? " are" : " is") + " missing.");
+    return;
+  }
+  if (!me.signedIn) { showView("login"); return; }
+  await enterApp();
 }
 boot();

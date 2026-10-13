@@ -42,12 +42,13 @@
     <div class="gate-badge" aria-hidden="true"><svg><use href="#cb-mark"></use></svg></div>
     <h1>Finish setting up the admin</h1>
     <p class="muted">The website works, but the admin needs two things in Cloudflare first.</p>
+    <p class="setup-status" data-setup-status role="status" hidden></p>
     <ol class="setup-steps">
       <li data-setup="database">
         <b>Database.</b> On a Cloudflare Worker it is created automatically on deploy. If this step isn't done, check that the latest deployment finished. On Cloudflare Pages, create a D1 database and add it under <i>Settings → Bindings</i> with the name <code>DB</code>.
       </li>
       <li data-setup="password">
-        <b>Admin password.</b> Open the project's <i>Settings → Variables and Secrets</i>, choose <i>Add</i>, pick type <i>Secret</i>, name it <code>ADMIN_PASSWORD</code>, enter a long password only staff know, and save or deploy.
+        <b>Admin password.</b> Open the project's <i>Settings → Variables and Secrets</i>, choose <i>Add</i>, pick type <i>Secret</i>, name it <code>ADMIN_PASSWORD</code> (capital letters), enter a long password only staff know, and save or deploy.
       </li>
       <li><b>Reload this page</b> once both are done.</li>
     </ol>
