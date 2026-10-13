@@ -46,10 +46,18 @@ still go to WhatsApp. They just aren't saved, and `/admin` shows what's missing.
 | Screen | What you can do |
 | --- | --- |
 | **Orders** | See today's orders, sales and what's waiting. Accept, complete or cancel an order, message or call the customer, open the address in Maps, and add staff notes. New orders appear by themselves (every 20 seconds). Turn on the bell for a chime. |
-| **Menu** | Add, rename, reorder or delete sections and items, set prices or sizes, mark items sold out, star house favourites, choose a section's picture, allow extras, and set choices like Hot / Iced. |
-| **Extras** | Edit the toppings customers can add, with their prices and stock. |
+| **Menu** | Add, rename, reorder or delete sections and items, set prices or sizes, mark items sold out, star house favourites, set choices like Hot / Iced. Add a **photo** to any item, and pick a drawing or upload a photo for each section. |
+| **Extras** | Edit toppings with their prices and stock. Each group chooses the menu sections it's **offered on** (e.g. syrups on shakes, spreads on crepes) and how many a customer **can pick**. |
 | **Website text** | Announcement bar, headline and introduction, About us, contact text. |
+| **Theme** | Colour sets (Crepe Beirut, Lotus caramel, Pistachio, Strawberry, Blueberry) or your own four colours, headline and text fonts, corner style, pattern (stripes, grid, plain), and the home page and About pictures. A live preview shows the result, and it warns you if text would be hard to read. |
 | **Shop settings** | Pause online orders, delivery fee, dollar rate, WhatsApp number, address and Maps link, opening hours ("Open now" on the site comes from these), social links. |
+
+Photos are shrunk in the browser before upload (up to 1600 px wide for the home page picture) and
+stored in the same D1 database, so no extra Cloudflare setup is needed.
+
+The website animates gently as you scroll: cards and menu rows float in, section badges spin in like
+batter on the plate, a chocolate drizzle draws under headings, and the wooden spreader turns. Visitors
+who turn on "reduce motion" on their device see everything still.
 
 How orders work:
 

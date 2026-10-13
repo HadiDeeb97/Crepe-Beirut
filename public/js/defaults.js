@@ -74,6 +74,22 @@ export const DEFAULT_CONTENT = {
     "contactTitle": "Order, ask, or say hi.",
     "contactText": "Orders, opening hours and delivery questions all go to our WhatsApp."
   },
+  "theme": {
+    "preset": "original",
+    "brand": "#633C20",
+    "accent": "#BDD9EE",
+    "soft": "#FCF0CA",
+    "background": "#FFFBF1",
+    "displayFont": "Fraunces",
+    "bodyFont": "Figtree",
+    "corners": "soft",
+    "pattern": "stripes"
+  },
+  "media": {
+    "hero": "",
+    "heroDrawings": true,
+    "about": ""
+  },
   "categories": [
     {
       "id": "crepes",
@@ -1604,6 +1620,13 @@ export const DEFAULT_CONTENT = {
     {
       "id": "spreads",
       "name": "Spreads",
+      "sections": [
+        "crepes",
+        "mini-pancakes",
+        "waffles",
+        "specials"
+      ],
+      "max": 0,
       "items": [
         {
           "id": "nutella",
@@ -1658,6 +1681,13 @@ export const DEFAULT_CONTENT = {
     {
       "id": "crunch-and-candy",
       "name": "Crunch & candy",
+      "sections": [
+        "crepes",
+        "mini-pancakes",
+        "waffles",
+        "specials"
+      ],
+      "max": 0,
       "items": [
         {
           "id": "oreo",
@@ -1748,6 +1778,13 @@ export const DEFAULT_CONTENT = {
     {
       "id": "fruit",
       "name": "Fruit",
+      "sections": [
+        "crepes",
+        "mini-pancakes",
+        "waffles",
+        "specials"
+      ],
+      "max": 0,
       "items": [
         {
           "id": "strawberry",
@@ -1772,6 +1809,13 @@ export const DEFAULT_CONTENT = {
     {
       "id": "ice-cream-and-syrups",
       "name": "Ice cream & syrups",
+      "sections": [
+        "crepes",
+        "mini-pancakes",
+        "waffles",
+        "specials"
+      ],
+      "max": 0,
       "items": [
         {
           "id": "scoop-vanilla",

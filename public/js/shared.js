@@ -9,6 +9,55 @@ export const ORDER_STATUSES = ["new", "accepted", "completed", "cancelled"];
 export const MAX_QTY = 50;
 export const MAX_LINES = 60;
 
+/* ---------- Theme ---------- */
+
+export const THEME_PRESETS = {
+  original:   { label: "Crepe Beirut",   brand: "#633C20", accent: "#BDD9EE", soft: "#FCF0CA", background: "#FFFBF1" },
+  caramel:    { label: "Lotus caramel",  brand: "#7A451A", accent: "#F2C894", soft: "#F8E8C8", background: "#FFFAF2" },
+  pistachio:  { label: "Pistachio",      brand: "#3E5A2B", accent: "#CFE3B5", soft: "#F4EFD6", background: "#FCFBF4" },
+  strawberry: { label: "Strawberry",     brand: "#7A2B3A", accent: "#F6C9D2", soft: "#FBEBD8", background: "#FFF9F7" },
+  blueberry:  { label: "Blueberry",      brand: "#2E3A6B", accent: "#C9D3F4", soft: "#F1ECF9", background: "#FBFAFF" }
+};
+
+export const DISPLAY_FONTS = {
+  "Fraunces": { label: "Fraunces (soft, classic)", css: "Fraunces:opsz,wght,SOFT@9..144,400..800,0..100", stack: '"Fraunces", Georgia, serif' },
+  "DM Serif Display": { label: "DM Serif Display (elegant)", css: "DM+Serif+Display", stack: '"DM Serif Display", Georgia, serif' },
+  "Gloock": { label: "Gloock (bold, retro)", css: "Gloock", stack: '"Gloock", Georgia, serif' },
+  "Baloo 2": { label: "Baloo 2 (round, playful)", css: "Baloo+2:wght@500..800", stack: '"Baloo 2", system-ui, sans-serif' },
+  "Lobster Two": { label: "Lobster Two (script)", css: "Lobster+Two:wght@700", stack: '"Lobster Two", Georgia, serif' }
+};
+
+export const BODY_FONTS = {
+  "Figtree": { label: "Figtree (clean)", css: "Figtree:wght@400..800", stack: '"Figtree", system-ui, sans-serif' },
+  "Nunito": { label: "Nunito (rounded)", css: "Nunito:wght@400..800", stack: '"Nunito", system-ui, sans-serif' },
+  "DM Sans": { label: "DM Sans (neutral)", css: "DM+Sans:opsz,wght@9..40,400..800", stack: '"DM Sans", system-ui, sans-serif' },
+  "Tajawal": { label: "Tajawal (works with Arabic)", css: "Tajawal:wght@400;500;700;800", stack: '"Tajawal", system-ui, sans-serif' }
+};
+
+export const DEFAULT_THEME = {
+  preset: "original", ...THEME_PRESETS.original, displayFont: "Fraunces", bodyFont: "Figtree", corners: "soft", pattern: "stripes"
+};
+delete DEFAULT_THEME.label;
+
+export const DEFAULT_MEDIA = { hero: "", heroDrawings: true, about: "" };
+
+/** URL of an uploaded image (its id is the SHA-256 of the file). */
+export function imageUrl(id) {
+  return id ? "/api/images/" + id : "";
+}
+export const isImageId = (v) => /^[a-f0-9]{64}$/.test(v || "");
+
+/** Relative luminance contrast between two #rrggbb colours (1–21). */
+export function contrast(a, b) {
+  const lum = (hex) => {
+    const n = parseInt(String(hex).slice(1), 16);
+    const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+  };
+  const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p);
+  return (x + 0.05) / (y + 0.05);
+}
+
 export function money(n) {
   return Math.round(Number(n) || 0).toLocaleString("en-US") + " L.L.";
 }
@@ -29,10 +78,16 @@ export function indexContent(content) {
   for (const cat of content.categories || []) {
     for (const it of cat.items || []) items.set(it.id, { item: it, cat });
   }
+  const extraGroup = new Map();
   for (const g of content.extras || []) {
-    for (const x of g.items || []) extras.set(x.id, x);
+    for (const x of g.items || []) { extras.set(x.id, x); extraGroup.set(x.id, g); }
   }
-  return { items, extras };
+  return { items, extras, extraGroup };
+}
+
+/** Extra groups offered on a menu section, in admin order. */
+export function extraGroupsFor(content, catId) {
+  return (content.extras || []).filter((g) => (g.sections || []).includes(catId) && g.items.length);
 }
 
 export function itemBasePrice(item, optionLabel) {
@@ -69,12 +124,19 @@ export function priceLine(index, line) {
     choice = cat.choice.values.includes(line.choice) ? line.choice : cat.choice.values[0];
   }
   const extras = [];
-  if (cat.extras && Array.isArray(line.extras)) {
+  if (Array.isArray(line.extras)) {
+    const picked = new Map();
     for (const id of line.extras) {
       const x = index.extras.get(id);
-      if (!x) continue;
+      const g = index.extraGroup.get(id);
+      // Only extras whose group is offered on this item's section count.
+      if (!x || !g || !(g.sections || []).includes(cat.id)) continue;
       if (!x.available) return { ok: false, reason: "unavailable", name: x.name + " (extra)" };
-      if (!extras.find((e) => e.id === x.id)) extras.push({ id: x.id, name: x.name, price: x.price });
+      if (extras.find((e) => e.id === x.id)) continue;
+      const n = picked.get(g.id) || 0;
+      if (g.max && n >= g.max) continue;
+      picked.set(g.id, n + 1);
+      extras.push({ id: x.id, name: x.name, price: x.price });
     }
   }
   const note = String(line.note || "").slice(0, 140).trim();
@@ -213,6 +275,7 @@ export function normalizeContent(raw, defaults) {
     return {
       id, name,
       img: /^[a-z0-9-]{1,40}$/.test(c.img || "") ? c.img : "badge",
+      image: isImageId(c.image) ? c.image : "",
       blurb: str(c.blurb, 160),
       extras: bool(c.extras),
       choice: values.length ? { label: str(c.choice.label, 40) || "Choose", values } : null,
@@ -229,7 +292,8 @@ export function normalizeContent(raw, defaults) {
           price: options.length ? null : num(it.price),
           options,
           available: bool(it.available, true),
-          featured: bool(it.featured)
+          featured: bool(it.featured),
+          image: isImageId(it.image) ? it.image : ""
         };
       })
     };
@@ -237,16 +301,41 @@ export function normalizeContent(raw, defaults) {
   const groupIds = new Set(), extraIds = new Set();
   const extras = (Array.isArray(raw.extras) ? raw.extras : []).slice(0, 20).map((g) => {
     const name = str(g.name, 50).trim() || "Extras";
+    // Which menu sections offer this group. Older content had one on/off switch per section,
+    // so without a list, the group goes on every section that had extras switched on.
+    const sections = Array.isArray(g.sections)
+      ? [...new Set(g.sections.map(String))].filter((id) => catIds.has(id))
+      : categories.filter((c) => c.extras).map((c) => c.id);
+    const max = Math.max(0, Math.min(20, Math.floor(Number(g.max) || 0)));
     return {
       id: uniqueId(slug(g.id || name), groupIds),
       name,
+      sections,
+      max,
       items: (Array.isArray(g.items) ? g.items : []).slice(0, 80).map((x) => {
         const xname = str(x.name, 60).trim() || "Extra";
         return { id: uniqueId(slug(x.id || xname), extraIds), name: xname, price: num(x.price), available: bool(x.available, true) };
       })
     };
   });
-  return { version: 1, settings, texts, categories, extras };
+  for (const c of categories) c.extras = extras.some((g) => g.sections.includes(c.id) && g.items.length);
+  const th = raw.theme || {};
+  const hex = (v, d) => (/^#[0-9a-fA-F]{6}$/.test(v || "") ? v.toUpperCase() : d);
+  const theme = {
+    preset: THEME_PRESETS[th.preset] ? th.preset : "custom",
+    brand: hex(th.brand, DEFAULT_THEME.brand),
+    accent: hex(th.accent, DEFAULT_THEME.accent),
+    soft: hex(th.soft, DEFAULT_THEME.soft),
+    background: hex(th.background, DEFAULT_THEME.background),
+    displayFont: DISPLAY_FONTS[th.displayFont] ? th.displayFont : DEFAULT_THEME.displayFont,
+    bodyFont: BODY_FONTS[th.bodyFont] ? th.bodyFont : DEFAULT_THEME.bodyFont,
+    corners: ["soft", "round", "square"].includes(th.corners) ? th.corners : DEFAULT_THEME.corners,
+    pattern: ["stripes", "grid", "plain"].includes(th.pattern) ? th.pattern : DEFAULT_THEME.pattern
+  };
+  if (!raw.theme) theme.preset = DEFAULT_THEME.preset;
+  const m = raw.media || {};
+  const media = { hero: isImageId(m.hero) ? m.hero : "", heroDrawings: bool(m.heroDrawings, true), about: isImageId(m.about) ? m.about : "" };
+  return { version: 1, settings, texts, theme, media, categories, extras };
 }
 
 /* ---------- Dates in the shop's time zone ---------- */

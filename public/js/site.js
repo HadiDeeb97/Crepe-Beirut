@@ -1,7 +1,7 @@
 import { DEFAULT_CONTENT } from "./defaults.js";
 import {
   money, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
-  DAYS, DAY_NAMES, shopClock, MAX_QTY
+  DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
 } from "./shared.js";
 
 const CART_KEY = "crepe-beirut-order-v2";
@@ -14,6 +14,9 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } };
 const imgSrc = (img) => (img && img !== "badge" ? `assets/img/${img}.webp` : "");
+// Picture for a section or item: an uploaded photo if there is one, else the section's drawing.
+const catPic = (cat) => (cat.image ? { src: imageUrl(cat.image), photo: true } : { src: imgSrc(cat.img), photo: false });
+const itemPic = (it, cat) => (it.image ? { src: imageUrl(it.image), photo: true } : catPic(cat));
 const plusIco = '<svg class="ico" aria-hidden="true"><use href="#i-plus"></use></svg>';
 const markSvg = '<svg aria-hidden="true"><use href="#cb-mark"></use></svg>';
 
@@ -40,6 +43,51 @@ async function fetchContent() {
   } finally {
     clearTimeout(t);
   }
+}
+
+/* ---------- Theme ---------- */
+
+const fontLinks = new Map();
+function useFont(spec) {
+  if (!spec || fontLinks.has(spec.css)) return;
+  const l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href = "https://fonts.googleapis.com/css2?family=" + spec.css + "&display=swap";
+  document.head.appendChild(l);
+  fontLinks.set(spec.css, l);
+}
+
+function applyTheme() {
+  const t = { ...DEFAULT_THEME, ...(content.theme || {}) };
+  const root = document.documentElement.style;
+  root.setProperty("--cocoa", t.brand);
+  root.setProperty("--sky", t.accent);
+  root.setProperty("--butter", t.soft);
+  root.setProperty("--cream", t.background);
+  const df = DISPLAY_FONTS[t.displayFont] || DISPLAY_FONTS.Fraunces;
+  const bf = BODY_FONTS[t.bodyFont] || BODY_FONTS.Figtree;
+  if (t.displayFont !== "Fraunces") useFont(df);
+  if (t.bodyFont !== "Figtree") useFont(bf);
+  root.setProperty("--display", df.stack);
+  root.setProperty("--body", bf.stack);
+  document.documentElement.dataset.corners = t.corners;
+  document.documentElement.dataset.pattern = t.pattern;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = t.background;
+}
+
+function renderHeroMedia() {
+  const m = { ...DEFAULT_MEDIA, ...(content.media || {}) };
+  const art = $(".hero-art");
+  art.classList.toggle("has-photo", !!m.hero);
+  art.classList.toggle("no-drawings", !m.heroDrawings);
+  const photo = $("[data-hero-photo]");
+  photo.hidden = !m.hero;
+  if (m.hero) photo.src = imageUrl(m.hero);
+  const about = $("[data-about-photo]");
+  about.hidden = !m.about;
+  if (m.about) about.src = imageUrl(m.about);
+  $(".seal-core").classList.toggle("has-photo", !!m.about);
 }
 
 function setContent(c) {
@@ -121,10 +169,10 @@ function renderFavs() {
   $("[data-favs-section]").hidden = !favs.length;
   const shown = favs.length >= 8 ? 8 : favs.length >= 4 ? 4 : favs.length; // fill whole rows of 4
   $("[data-favs]").innerHTML = favs.slice(0, shown).map(({ it, cat }) => {
-    const src = imgSrc(cat.img);
+    const pic = itemPic(it, cat);
     const price = it.options.length > 1 ? "from " + money(minPrice(it)) : money(minPrice(it));
     return `<li class="fav">
-      <div class="fav-pic">${src ? `<img src="${src}" alt="" loading="lazy">` : `<div class="cat-badge">${markSvg}</div>`}</div>
+      <div class="fav-pic${pic.photo ? " photo" : ""}">${pic.src ? `<img src="${pic.src}" alt="${pic.photo ? esc(it.name) : ""}" loading="lazy">` : `<div class="cat-badge">${markSvg}</div>`}</div>
       <div class="fav-body">
         <span class="fav-cat">${esc(cat.name)}</span>
         <div><div class="fav-name">${esc(it.name)}</div><div class="fav-price">${price}</div></div>
@@ -142,26 +190,34 @@ function priceHtml(it) {
   return money(it.price);
 }
 
+function extrasNote(cat) {
+  const groups = extraGroupsFor(content, cat.id);
+  if (!groups.length) return "";
+  const names = groups.flatMap((g) => g.items.filter((x) => x.available).slice(0, 2).map((x) => x.name)).slice(0, 4);
+  return `<p class="cat-note">Make it yours: ${names.length ? "add " + esc(names.join(", ")) + " and more" : "add extras"} when you tap +.</p>`;
+}
+
 function renderMenu() {
   const cats = content.categories.filter((c) => c.visible && c.items.length);
   $("[data-menu]").innerHTML = cats.map((cat) => {
-    const src = imgSrc(cat.img);
+    const pic = catPic(cat);
     const rows = cat.items.map((it) => {
       const out = !it.available;
+      const thumb = it.image ? `<img class="item-pic" src="${imageUrl(it.image)}" alt="" loading="lazy">` : "";
       const sub = [it.options.length === 1 ? esc(it.options[0].label) : "", it.desc ? esc(it.desc) : ""].filter(Boolean).join(" · ");
-      return `<li class="item${out ? " out" : ""}" data-item="${esc(it.id)}" data-search="${esc((it.name + " " + cat.name + " " + it.desc).toLowerCase())}">
-        <span class="item-name">${esc(it.name)}${it.featured && !out ? '<span class="tag tag-pop">Popular</span>' : ""}${out ? '<span class="tag tag-out">Sold out</span>' : ""}${sub ? `<span class="item-desc">${sub}</span>` : ""}</span>
+      return `<li class="item${out ? " out" : ""}${thumb ? " has-pic" : ""}" data-item="${esc(it.id)}" data-search="${esc((it.name + " " + cat.name + " " + it.desc).toLowerCase())}">
+        ${thumb}<span class="item-name">${esc(it.name)}${it.featured && !out ? '<span class="tag tag-pop">Popular</span>' : ""}${out ? '<span class="tag tag-out">Sold out</span>' : ""}${sub ? `<span class="item-desc">${sub}</span>` : ""}</span>
         <span class="item-price">${priceHtml(it)}</span>
         <button class="add" type="button" data-add="${esc(it.id)}" aria-label="${out ? esc(it.name) + " is sold out" : "Add " + esc(it.name)}"${out ? " disabled" : ""}>${plusIco}</button>
       </li>`;
     }).join("");
     return `<section class="cat" id="${esc(cat.id)}" data-cat="${esc(cat.id)}" aria-labelledby="h-${esc(cat.id)}">
       <div class="cat-head">
-        <div class="cat-badge" aria-hidden="true">${src ? `<img src="${src}" alt="">` : markSvg}</div>
+        <div class="cat-badge${pic.photo ? " photo" : ""}" aria-hidden="true">${pic.src ? `<img src="${pic.src}" alt="">` : markSvg}</div>
         <div><h3 id="h-${esc(cat.id)}">${esc(cat.name)}</h3><p class="cat-meta">${cat.items.length} ${cat.items.length === 1 ? "item" : "items"}${cat.blurb ? " · " + esc(cat.blurb) : ""}</p></div>
       </div>
       <ul class="items">${rows}</ul>
-      ${cat.extras ? '<p class="cat-note">Add extras like Nutella, Lotus, Oreo, fruit or ice cream when you tap +.</p>' : ""}
+      ${extrasNote(cat)}
     </section>`;
   }).join("");
   const nav = cats.map((c) => `<a href="#${esc(c.id)}" data-nav="${esc(c.id)}">${esc(c.name)}</a>`).join("");
@@ -244,9 +300,11 @@ function openSheet(hit) {
   const desc = $("[data-sheet-desc]");
   desc.hidden = !item.desc;
   desc.textContent = item.desc;
-  const src = imgSrc(cat.img);
-  $("[data-sheet-hero]").hidden = !src;
-  if (src) $("[data-sheet-img]").src = src;
+  const pic = itemPic(item, cat);
+  const hero = $("[data-sheet-hero]");
+  hero.hidden = !pic.src;
+  hero.classList.toggle("photo", pic.photo);
+  if (pic.src) $("[data-sheet-img]").src = pic.src;
 
   let html = "";
   if (item.options.length) {
@@ -259,12 +317,10 @@ function openSheet(hit) {
       cat.choice.values.map((v, i) => `<label class="opt"><input type="radio" name="choice" value="${esc(v)}"${i ? "" : " checked"}><span>${esc(v)}</span></label>`).join("") +
       "</div></fieldset>";
   }
-  if (cat.extras) {
-    html += content.extras.filter((g) => g.items.length).map((g, gi) =>
-      `<fieldset class="opt-group"><legend>${esc(g.name)}${gi ? "" : ' <span class="hint">· optional</span>'}</legend><div class="opts">` +
-      g.items.map((x) => `<label class="opt"><input type="checkbox" name="extra" value="${esc(x.id)}"${x.available ? "" : " disabled"}><span>${esc(x.name)} <small>${x.available ? "+" + x.price.toLocaleString("en-US") : "sold out"}</small></span></label>`).join("") +
-      "</div></fieldset>").join("");
-  }
+  html += extraGroupsFor(content, cat.id).map((g) =>
+    `<fieldset class="opt-group" data-max="${g.max || 0}"><legend>${esc(g.name)} <span class="hint">· ${g.max ? "pick up to " + g.max : "optional"}</span></legend><div class="opts">` +
+    g.items.map((x) => `<label class="opt"><input type="checkbox" name="extra" value="${esc(x.id)}"${x.available ? "" : " disabled"}><span>${esc(x.name)} <small>${x.available ? "+" + x.price.toLocaleString("en-US") : "sold out"}</small></span></label>`).join("") +
+    "</div></fieldset>").join("");
   html += `<div class="field"><label for="sheet-note">Note for this item <span class="opt">optional</span></label><input id="sheet-note" name="note" maxlength="120" placeholder="e.g. cut in half, less sauce"></div>`;
   $("[data-sheet-body]").innerHTML = html;
   $("[data-sheet-body]").scrollTop = 0;
@@ -292,14 +348,24 @@ function updateSheet() {
   $("[data-sheet-add]").textContent = "Add · " + money(p.ok ? p.total : 0);
 }
 const closeSheet = () => { if (sheet.open) sheet.close(); };
-$("[data-sheet-body]").addEventListener("change", updateSheet);
+$("[data-sheet-body]").addEventListener("change", (e) => {
+  // Respect "pick up to N" on extra groups.
+  const box = e.target.closest('input[name="extra"]');
+  const group = box && box.closest("[data-max]");
+  const max = group ? Number(group.dataset.max) : 0;
+  if (box && box.checked && max && $$('input[name="extra"]:checked', group).length > max) {
+    box.checked = false;
+    toast(`You can pick up to ${max} here.`);
+  }
+  updateSheet();
+});
 $("[data-sheet-minus]").addEventListener("click", () => { sheetQty = Math.max(1, sheetQty - 1); updateSheet(); });
 $("[data-sheet-plus]").addEventListener("click", () => { sheetQty = Math.min(MAX_QTY, sheetQty + 1); updateSheet(); });
 $("[data-sheet-close]").addEventListener("click", closeSheet);
 sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
 $("[data-sheet-form]").addEventListener("submit", (e) => {
   e.preventDefault();
-  if (sheetHit) addLine(sheetLine());
+  if (sheetHit) addLine(sheetLine(), $("[data-sheet-add]").getBoundingClientRect());
   closeSheet();
 });
 
@@ -309,21 +375,22 @@ document.addEventListener("click", (e) => {
   const hit = index.items.get(btn.dataset.add);
   if (!hit || !hit.item.available) return;
   if (needsSheet(hit)) openSheet(hit);
-  else addLine({ itemId: hit.item.id, option: hit.item.options[0] ? hit.item.options[0].label : "", choice: "", extras: [], note: "", qty: 1 });
+  else addLine({ itemId: hit.item.id, option: hit.item.options[0] ? hit.item.options[0].label : "", choice: "", extras: [], note: "", qty: 1 }, btn.getBoundingClientRect());
 });
 
 /* ---------- Cart ---------- */
 
 const keyOf = (l) => [l.itemId, l.option, l.choice, [...(l.extras || [])].sort().join("+"), l.note].join("|");
 
-function addLine(line) {
+function addLine(line, from) {
   const k = keyOf(line);
   const found = cart.find((l) => keyOf(l) === k);
   if (found) found.qty = Math.min(MAX_QTY, found.qty + line.qty); else cart.push(line);
   commit();
   const hit = index.items.get(line.itemId);
   toast(`Added ${line.qty} × ${hit ? hit.item.name : "item"}`);
-  $$("[data-count]").forEach((el) => { el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); });
+  const bump = () => $$("[data-count]").forEach((el) => { el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); });
+  if (from && hit) flyToBag(from, itemPic(hit.item, hit.cat).src).then(bump); else bump();
 }
 
 function commit() {
@@ -396,7 +463,7 @@ function renderCart() {
   const s = content.settings;
   const bits = [];
   if (s.usdRate > 0 && t.total) bits.push("≈ $" + (t.total / s.usdRate).toFixed(2));
-  if (!s.deliveryFee && orderType() === "Delivery") bits.push("Delivery fee, if any, is confirmed on WhatsApp.");
+  if (!s.deliveryFee && orderType() === "Delivery") bits.push("If there's a delivery fee, we'll tell you on WhatsApp before we start your order.");
   note.hidden = !bits.length;
   note.textContent = bits.join(" · ");
 
@@ -598,6 +665,8 @@ function toast(msg) {
 
 function renderAll() {
   cart = cart.filter((l) => l && l.itemId && l.qty > 0 && index.items.has(l.itemId));
+  applyTheme();
+  renderHeroMedia();
   renderTexts();
   renderFavs();
   renderMenu();
@@ -609,7 +678,86 @@ setContent(load(CONTENT_CACHE, null) || DEFAULT_CONTENT);
 renderAll();
 fetchContent().then((res) => {
   ordersEnabled = res.ordersEnabled;
+  if (JSON.stringify(res.content) === JSON.stringify(content)) return; // nothing changed since last visit
   setContent(res.content);
   renderAll();
 });
 setInterval(renderOpen, 60000);
+
+/* ---------- Motion ----------
+   Sections and cards float in as they scroll into view, badges spin in like batter spread on the
+   plate, a chocolate drizzle draws under headings, and the hero's spreader turns as you scroll.
+   Nothing is hidden unless motion is allowed and the observer is available. */
+
+const motionOK = !window.matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window;
+let revealIO = null;
+
+function markReveals() {
+  if (!motionOK) return;
+  const add = (el, delay = 0, kind = "") => {
+    if (!el || el.dataset.revealed) return;
+    el.classList.add("reveal");
+    if (kind) el.classList.add(kind);
+    el.style.setProperty("--d", delay + "ms");
+    el.dataset.revealed = "1";
+    revealIO.observe(el);
+  };
+  $$(".drizzle").forEach((el) => add(el, 150, "draw"));
+  $$(".section-head, .menu-intro, .about-copy > *, .visit-card, .seal").forEach((el) => add(el));
+  $$(".fav").forEach((el, i) => add(el, (i % 4) * 90));
+  $$(".cat").forEach((cat) => {
+    add($(".cat-head h3", cat));
+    add($(".cat-badge", cat), 0, "spin");
+    $$(".item", cat).forEach((el, i) => add(el, Math.min(i, 8) * 45));
+  });
+}
+
+if (motionOK) {
+  document.documentElement.classList.add("motion");
+  revealIO = new IntersectionObserver((entries) => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      en.target.classList.add("shown");
+      revealIO.unobserve(en.target);
+    }
+  }, { rootMargin: "0px 0px -8% 0px", threshold: 0.08 });
+  markReveals();
+  new MutationObserver(markReveals).observe($("[data-menu]"), { childList: true });
+  new MutationObserver(markReveals).observe($("[data-favs]"), { childList: true });
+
+  // Hero parallax: the spreader turns and the crepe floats as you scroll.
+  const art = $(".hero-art");
+  let ticking = false;
+  window.addEventListener("scroll", () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const y = Math.min(window.scrollY, 900);
+      art.style.setProperty("--sy", y.toFixed(1));
+      ticking = false;
+    });
+  }, { passive: true });
+}
+
+/** A little picture flies from the + button into the order bag. */
+function flyToBag(fromRect, src) {
+  if (!motionOK) return Promise.resolve();
+  const targets = [$(".bag-bar"), $(".bag-btn")].filter((el) => el && el.offsetParent !== null && !el.hidden);
+  const target = targets[0];
+  if (!target) return Promise.resolve();
+  const to = target.getBoundingClientRect();
+  const dot = document.createElement("div");
+  dot.className = "fly";
+  if (src) dot.innerHTML = `<img src="${src}" alt="">`;
+  document.body.appendChild(dot);
+  const x0 = fromRect.left + fromRect.width / 2 - 22, y0 = fromRect.top + fromRect.height / 2 - 22;
+  const x1 = to.left + to.width / 2 - 22, y1 = to.top + to.height / 2 - 22;
+  const lift = Math.min(160, Math.abs(y1 - y0) * 0.4 + 60);
+  const anim = dot.animate([
+    { transform: `translate(${x0}px, ${y0}px) scale(.6) rotate(0deg)`, opacity: 0 },
+    { transform: `translate(${x0}px, ${y0 - 20}px) scale(1.1) rotate(-20deg)`, opacity: 1, offset: 0.15 },
+    { transform: `translate(${(x0 + x1) / 2}px, ${Math.min(y0, y1) - lift}px) scale(1) rotate(140deg)`, offset: 0.55 },
+    { transform: `translate(${x1}px, ${y1}px) scale(.35) rotate(320deg)`, opacity: 0.9 }
+  ], { duration: 780, easing: "cubic-bezier(.45,.05,.35,1)" });
+  return anim.finished.catch(() => {}).then(() => dot.remove());
+}

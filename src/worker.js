@@ -13,16 +13,20 @@ import * as logout from "../functions/api/admin/logout.js";
 import * as adminContent from "../functions/api/admin/content.js";
 import * as adminOrders from "../functions/api/admin/orders/index.js";
 import * as adminOrder from "../functions/api/admin/orders/[id].js";
+import * as image from "../functions/api/images/[id].js";
+import * as adminImages from "../functions/api/admin/images.js";
 import { fail } from "../lib/server.js";
 
 const ROUTES = [
   { path: /^\/api\/content$/, mod: content },
   { path: /^\/api\/orders$/, mod: orders },
+  { path: /^\/api\/images\/(?<id>[^/]+)$/, mod: image },
   { path: /^\/api\/admin\/me$/, mod: me, admin: true },
   { path: /^\/api\/admin\/login$/, mod: login, admin: true },
   { path: /^\/api\/admin\/logout$/, mod: logout, admin: true },
   { path: /^\/api\/admin\/content$/, mod: adminContent, admin: true },
   { path: /^\/api\/admin\/orders$/, mod: adminOrders, admin: true },
+  { path: /^\/api\/admin\/images$/, mod: adminImages, admin: true },
   { path: /^\/api\/admin\/orders\/(?<id>[^/]+)$/, mod: adminOrder, admin: true }
 ];
 

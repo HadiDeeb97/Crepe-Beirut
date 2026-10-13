@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug } from "../js/shared.js";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -10,6 +10,80 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } }
 };
 const PICTURES = ["crepe", "pancakes", "waffle", "spreader", "iced-cup", "shake", "latte", "smoothies", "leaf", "mojito", "tiramisu", "badge"];
+/* ---------- Picture uploads ---------- */
+
+// Longest side in pixels after shrinking, per use.
+const MAX_SIDE = { item: 1000, section: 600, hero: 1600, about: 900 };
+
+function pickFile() {
+  return new Promise((resolve) => {
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = "image/*";
+    inp.onchange = () => resolve(inp.files[0] || null);
+    inp.click();
+  });
+}
+
+async function shrink(file, maxSide) {
+  let src;
+  try {
+    src = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    src = await new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = () => rej(new Error("That file couldn't be opened as a picture."));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+  const k = Math.min(1, maxSide / Math.max(src.width, src.height));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(src.width * k));
+  c.height = Math.max(1, Math.round(src.height * k));
+  const g = c.getContext("2d");
+  const toBlob = (type, q) => new Promise((r) => c.toBlob(r, type, q));
+  g.drawImage(src, 0, 0, c.width, c.height);
+  let blob = await toBlob("image/webp", 0.84);
+  if (!blob || blob.type !== "image/webp") {
+    g.globalCompositeOperation = "destination-over";
+    g.fillStyle = "#ffffff";
+    g.fillRect(0, 0, c.width, c.height);
+    blob = await toBlob("image/jpeg", 0.85);
+  }
+  return blob;
+}
+
+/** Ask for a picture, shrink it, upload it. Resolves to the image id, or null. */
+async function uploadImage(kind) {
+  const file = await pickFile();
+  if (!file) return null;
+  if (!file.type.startsWith("image/")) { toast("Choose a picture file (JPG, PNG or WebP).", true); return null; }
+  toast("Uploading picture…");
+  try {
+    const blob = await shrink(file, MAX_SIDE[kind] || 1200);
+    const r = await fetch("/api/admin/images", { method: "POST", body: blob, headers: { "content-type": blob.type }, credentials: "same-origin" });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 401) { showView("login"); return null; }
+    if (!r.ok) { toast(data.error || "The picture couldn't be uploaded.", true); return null; }
+    toast("Picture added. Publish to show it on the website.");
+    return data.id;
+  } catch (e) {
+    toast(e.message || "The picture couldn't be uploaded.", true);
+    return null;
+  }
+}
+
+const fontLinks = new Set();
+function useFont(spec) {
+  if (!spec || fontLinks.has(spec.css)) return;
+  const l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href = "https://fonts.googleapis.com/css2?family=" + spec.css + "&display=swap";
+  document.head.appendChild(l);
+  fontLinks.add(spec.css);
+}
+
 const STATUS_LABEL = { new: "New", accepted: "Accepted", completed: "Completed", cancelled: "Cancelled" };
 
 /* ---------- API ---------- */
@@ -48,7 +122,7 @@ const isDirty = () => state.draft && JSON.stringify(state.draft) !== JSON.string
 
 function route() {
   const r = (location.hash || "#orders").slice(1);
-  state.route = ["orders", "menu", "extras", "texts", "settings"].includes(r) ? r : "orders";
+  state.route = ["orders", "menu", "extras", "texts", "theme", "settings"].includes(r) ? r : "orders";
   $$("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === state.route));
   render();
   main.scrollTop = 0;
@@ -58,7 +132,7 @@ window.addEventListener("hashchange", route);
 
 function render() {
   const keep = window.scrollY;
-  ({ orders: renderOrders, menu: renderMenu, extras: renderExtras, texts: renderTexts, settings: renderSettings })[state.route]();
+  ({ orders: renderOrders, menu: renderMenu, extras: renderExtras, texts: renderTexts, theme: renderTheme, settings: renderSettings })[state.route]();
   updatePublishBar();
   return keep;
 }
@@ -356,9 +430,11 @@ main.addEventListener("input", (e) => {
 main.addEventListener("change", (e) => {
   const el = e.target.closest("[data-bind]");
   if (el && el.dataset.kind === "money") el.value = fmtMoneyInput(parseMoney(el.value));
+  if (el && el.tagName === "SELECT") { setPath(state.draft, el.dataset.bind, el.value); rerender(); }
   if (el && (el.type === "checkbox" || el.type === "radio")) {
     if (el.dataset.kind === "bool") setPath(state.draft, el.dataset.bind, el.checked);
     else setPath(state.draft, el.dataset.bind, el.value);
+    if (el.dataset.alsoClear) setPath(state.draft, el.dataset.alsoClear, "");
     if (el.dataset.refresh !== "no") rerender();
   }
   updatePublishBar();
@@ -401,11 +477,19 @@ function renderMenu() {
               ${field("Short description", base + ".blurb", { max: 160, placeholder: "e.g. Folded to order on the hot plate.", help: "Optional. Shown under the section name." })}
             </div>
             <div class="field"><span class="label">Picture</span>
-              <div class="pic-picker">${PICTURES.map((p) => `<label class="pic-opt" title="${p === "badge" ? "Logo" : p}"><input type="radio" name="pic" value="${p}" data-bind="${base}.img" ${c.img === p ? "checked" : ""}>${thumb(p)}</label>`).join("")}</div>
+              <div class="pic-picker">
+                ${c.image ? `<span class="pic-opt"><span class="thumb photo-sel" style="width:56px;height:56px"><img src="${imageUrl(c.image)}" alt="Section photo"></span></span>` : ""}
+                ${PICTURES.map((p) => `<label class="pic-opt" title="${p === "badge" ? "Logo" : p}"><input type="radio" name="pic" value="${p}" data-bind="${base}.img" data-also-clear="${base}.image" ${!c.image && c.img === p ? "checked" : ""}>${thumb(p)}</label>`).join("")}
+                <button type="button" class="pic-upload" data-cat-photo title="Upload your own photo">${ico("i-upload")}<span>${c.image ? "Change" : "Upload"}</span></button>
+              </div>
+              <p class="help">${c.image ? 'Your photo is shown. Pick a drawing to go back, or <button type="button" class="link-btn" data-cat-photo-del>remove the photo</button>.' : "Pick a drawing, or upload your own photo."}</p>
             </div>
             <div class="toggles">
               ${sw("Show on the website", base + ".visible")}
-              ${sw("Customers can add extras", base + ".extras", { norefresh: true })}
+              <span class="extras-link">${(() => {
+                const gs = state.draft.extras.filter((g) => (g.sections || []).includes(c.id));
+                return gs.length ? `Extras: <b>${gs.map((g) => esc(g.name)).join(", ")}</b>` : "No extras on this section";
+              })()} · <a href="#extras">Change in Extras</a></span>
             </div>
             <div class="grid-2">
               <div class="field"><label for="choice-label">Extra choice <span class="muted">(optional)</span></label>
@@ -427,7 +511,7 @@ function renderMenu() {
         <div class="card">
           <div class="section" style="padding-bottom:12px"><div class="section-title"><h2>Items</h2><p>Turn off <b>In stock</b> to show an item as sold out. The star marks it as a house favourite on the home page.</p></div></div>
           <div class="items-table">
-            <div class="items-head"><span></span><span>Name &amp; description</span><span>Price</span><span>In stock</span><span></span></div>
+            <div class="items-head"><span></span><span>Photo</span><span>Name &amp; description</span><span>Price</span><span>In stock</span><span></span></div>
             ${c.items.map((it, ii) => itemRow(it, ci, ii, c.items.length)).join("") || `<p class="list-empty">No items yet.</p>`}
           </div>
           <div class="add-row"><button class="btn btn-line" type="button" data-add-item>${ico("i-plus")}Add item</button></div>
@@ -449,6 +533,9 @@ function itemRow(it, ci, ii, n) {
         <button class="link-btn" type="button" data-use-sizes="${ii}">+ Sizes (e.g. 12 / 25 pcs)</button></div>`;
   return `<div class="irow ${it.available ? "" : "out"}">
     <span class="grip muted num" aria-hidden="true">${ii + 1}</span>
+    <div class="pic-cell">${it.image
+      ? `<button class="photo-btn has" type="button" data-item-photo="${ii}" title="Change photo"><img src="${imageUrl(it.image)}" alt=""></button><button class="link-btn" type="button" data-item-photo-del="${ii}">Remove</button>`
+      : `<button class="photo-btn" type="button" data-item-photo="${ii}" title="Add a photo">${ico("i-image")}<span>Photo</span></button>`}</div>
     <div class="name-cell">
       <input class="input" aria-label="Item name" data-bind="${p}.name" data-k="name" value="${esc(it.name)}" maxlength="80">
       <input class="input desc" aria-label="Description" data-bind="${p}.desc" value="${esc(it.desc)}" placeholder="Description (optional)" maxlength="200">
@@ -481,17 +568,25 @@ main.addEventListener("input", (e) => {
 function renderExtras() {
   const groups = state.draft.extras;
   main.innerHTML = mobileTop() + `
-    <div class="page-head"><h1>Extras</h1><span class="muted">Toppings customers can add to sections that allow extras.</span></div>
+    <div class="page-head"><h1>Extras</h1><span class="muted">Toppings and add-ons. Each group chooses the menu sections it's offered on.</span></div>
     <div class="stack">
       ${groups.map((g, gi) => `<div class="card">
         <div class="group-head">
           <input class="input" aria-label="Group name" data-bind="extras.${gi}.name" value="${esc(g.name)}" maxlength="50">
           <span class="muted">${g.items.length} extras</span>
+          <label class="max-pick">Customers can pick
+            <select data-group-max="${gi}" aria-label="How many customers can pick">${[0, 1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${Number(g.max || 0) === n ? "selected" : ""}>${n ? "up to " + n : "any number"}</option>`).join("")}</select>
+          </label>
           <span style="margin-left:auto;display:flex;gap:2px">
             <button class="icon-btn" type="button" data-move-group="${gi}" data-dir="-1" ${gi === 0 ? "disabled" : ""} aria-label="Move group up">${ico("i-up")}</button>
             <button class="icon-btn" type="button" data-move-group="${gi}" data-dir="1" ${gi === groups.length - 1 ? "disabled" : ""} aria-label="Move group down">${ico("i-down")}</button>
             <span data-del-group-wrap="${gi}"><button class="icon-btn danger" type="button" data-del-group="${gi}" aria-label="Delete group">${ico("i-trash")}</button></span>
           </span>
+        </div>
+        <div class="offered">
+          <span class="label">Offered on</span>
+          <div class="chip-checks">${state.draft.categories.map((c) => `<label class="chip-check"><input type="checkbox" data-group-section="${gi}" value="${esc(c.id)}" ${(g.sections || []).includes(c.id) ? "checked" : ""}><span>${esc(c.name)}</span></label>`).join("")}</div>
+          ${(g.sections || []).length ? "" : `<p class="help warn">Not offered anywhere yet. Tick the sections where customers can add these.</p>`}
         </div>
         ${g.items.map((x, xi) => `<div class="xrow">
           <input class="input" aria-label="Extra name" data-bind="extras.${gi}.items.${xi}.name" value="${esc(x.name)}" maxlength="60">
@@ -533,6 +628,146 @@ function renderTexts() {
       </div>
     </div></div>`;
 }
+
+/* ---------- Theme ---------- */
+
+const COLOR_FIELDS = [
+  ["brand", "Brand colour", "Headlines, buttons and the logo."],
+  ["accent", "Accent colour", "Stripes, badges and highlights."],
+  ["soft", "Soft colour", "Cards, the second stripe colour, light panels."],
+  ["background", "Background", "The page itself."]
+];
+
+function themeOf() {
+  state.draft.theme = { ...DEFAULT_THEME, ...(state.draft.theme || {}) };
+  state.draft.media = { ...DEFAULT_MEDIA, ...(state.draft.media || {}) };
+  return state.draft.theme;
+}
+
+function previewVars(t) {
+  const df = DISPLAY_FONTS[t.displayFont] || DISPLAY_FONTS.Fraunces;
+  const bf = BODY_FONTS[t.bodyFont] || BODY_FONTS.Figtree;
+  useFont(df); useFont(bf);
+  const r = { soft: "14px", round: "22px", square: "5px" }[t.corners];
+  return `--p-brand:${t.brand};--p-accent:${t.accent};--p-soft:${t.soft};--p-bg:${t.background};--p-display:${df.stack};--p-body:${bf.stack};--p-r:${r};--p-pill:${t.corners === "square" ? "6px" : "999px"}`;
+}
+
+function themeWarnings(t) {
+  const w = [];
+  if (contrast(t.brand, t.background) < 4.5) w.push("Text in the brand colour will be hard to read on this background. Pick a darker brand colour or a lighter background.");
+  if (contrast(t.brand, t.soft) < 3) w.push("The brand colour and the soft colour are too close, so text on cards may be hard to read.");
+  return w;
+}
+
+function paintThemeExtras() {
+  const t = state.draft.theme;
+  const pv = $("[data-preview]");
+  if (pv) pv.setAttribute("style", previewVars(t));
+  const warn = $("[data-theme-warn]");
+  if (warn) {
+    const w = themeWarnings(t);
+    warn.hidden = !w.length;
+    warn.innerHTML = w.map((x) => `<p>${esc(x)}</p>`).join("");
+  }
+  $$("[data-preset]").forEach((b) => b.classList.toggle("on", b.dataset.preset === t.preset));
+}
+
+function renderTheme() {
+  const t = themeOf();
+  const m = state.draft.media;
+  const seg = (path, value, options) => `<div class="segmented" role="radiogroup">${options.map(([v, label]) =>
+    `<label><input type="radio" name="${path}" value="${v}" data-bind="${path}" ${value === v ? "checked" : ""}><span>${label}</span></label>`).join("")}</div>`;
+  const picBox = (kind, id, fallback) => `<div class="media-box ${id ? "has" : ""}">
+      ${id ? `<img src="${imageUrl(id)}" alt="">` : `<img class="fallback" src="${fallback}" alt="">`}
+    </div>
+    <div class="media-actions">
+      <button class="btn btn-line btn-sm" type="button" data-media-photo="${kind}">${ico("i-upload")}${id ? "Change picture" : "Upload a picture"}</button>
+      ${id ? `<button class="btn btn-ghost btn-sm" type="button" data-media-del="${kind}">Use the original drawing</button>` : ""}
+    </div>`;
+  main.innerHTML = mobileTop() + `
+    <div class="page-head"><h1>Theme</h1><span class="muted">Colours, fonts and pictures of the website.</span></div>
+    <div class="theme-layout">
+      <div class="stack" style="max-width:none">
+        <div class="card">
+          <div class="section">
+            <div class="section-title"><h2>Colour sets</h2><p>Start from a set, then fine-tune the colours below.</p></div>
+            <div class="presets">${Object.entries(THEME_PRESETS).map(([k, p]) => `<button type="button" class="preset ${t.preset === k ? "on" : ""}" data-preset="${k}">
+              <span class="swatches">${["brand", "accent", "soft", "background"].map((c) => `<i style="background:${p[c]}"></i>`).join("")}</span><span>${esc(p.label)}</span></button>`).join("")}</div>
+          </div>
+          <div class="section">
+            <div class="section-title"><h2>Colours</h2></div>
+            <div class="colors">${COLOR_FIELDS.map(([k, label, help]) => `<div class="color-field">
+              <input type="color" id="c-${k}" value="${t[k]}" data-theme-color="${k}" aria-label="${label}">
+              <div><label for="c-${k}" class="label">${label}</label><p class="help">${help}</p></div>
+              <input class="input hex" value="${t[k]}" data-theme-hex="${k}" maxlength="7" aria-label="${label} code" spellcheck="false">
+            </div>`).join("")}</div>
+            <div class="notice-warn" data-theme-warn hidden></div>
+          </div>
+          <div class="section">
+            <div class="section-title"><h2>Fonts</h2></div>
+            <div class="grid-2">
+              <div class="field"><label for="f-display">Headlines</label><select id="f-display" data-bind="theme.displayFont">${Object.entries(DISPLAY_FONTS).map(([k, f]) => `<option value="${esc(k)}" ${t.displayFont === k ? "selected" : ""}>${esc(f.label)}</option>`).join("")}</select></div>
+              <div class="field"><label for="f-body">Text</label><select id="f-body" data-bind="theme.bodyFont">${Object.entries(BODY_FONTS).map(([k, f]) => `<option value="${esc(k)}" ${t.bodyFont === k ? "selected" : ""}>${esc(f.label)}</option>`).join("")}</select></div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-title"><h2>Shape &amp; pattern</h2></div>
+            <div class="grid-2">
+              <div class="field"><span class="label">Corners</span>${seg("theme.corners", t.corners, [["soft", "Soft"], ["round", "Round"], ["square", "Square"]])}</div>
+              <div class="field"><span class="label">Pattern</span>${seg("theme.pattern", t.pattern, [["stripes", "Stripes"], ["grid", "Grid"], ["plain", "Plain"]])}</div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-title"><h2>Home page picture</h2><p>The big picture at the top of the website. A wide photo of your crepes or shop works best.</p></div>
+            ${picBox("hero", m.hero, "../assets/img/crepe.webp")}
+            ${sw("Show the drawings around it (logo sticker, spreader, pancake)", "media.heroDrawings")}
+          </div>
+          <div class="section">
+            <div class="section-title"><h2>About us picture</h2><p>Shown in the round frame next to your story.</p></div>
+            ${picBox("about", m.about, "../assets/logo-badge.svg")}
+          </div>
+          <div class="section">
+            <button class="btn btn-ghost btn-sm" type="button" data-theme-reset>Reset colours, fonts and shape to the original</button>
+          </div>
+        </div>
+      </div>
+      <aside class="theme-preview">
+        <p class="label">Preview</p>
+        <div class="tp card" data-preview data-pattern="${t.pattern}">
+          <div class="tp-head"><svg class="tp-mark" aria-hidden="true"><use href="#cb-mark"></use></svg><span class="tp-pill">Your order <b>2</b></span></div>
+          <div class="tp-hero">
+            <div class="tp-copy"><p class="tp-kicker">Crepes · Waffles</p><h3 class="tp-h">${esc(state.draft.texts.heroTitle)}</h3><span class="tp-btn">Start your order</span></div>
+            <div class="tp-panel">${m.hero ? `<img src="${imageUrl(m.hero)}" alt="">` : `<img class="tp-drawing" src="../assets/img/crepe.webp" alt="">`}</div>
+          </div>
+          <div class="tp-menu">
+            <div class="tp-cat"><span class="tp-badge"><img src="../assets/img/crepe.webp" alt=""></span><b>Crepes</b></div>
+            <div class="tp-row"><span>Nutella Crepe <i>Popular</i></span><span>350,000 L.L.</span><span class="tp-add">+</span></div>
+            <div class="tp-row"><span>Lotus Crepe</span><span>350,000 L.L.</span><span class="tp-add">+</span></div>
+          </div>
+          <div class="tp-band">A crêperie with a sweet tooth.</div>
+        </div>
+      </aside>
+    </div>`;
+  paintThemeExtras();
+}
+
+main.addEventListener("input", (e) => {
+  const el = e.target;
+  const k = el.dataset.themeColor || el.dataset.themeHex;
+  if (!k || state.route !== "theme") return;
+  let v = el.value.trim();
+  if (el.dataset.themeHex) {
+    if (!v.startsWith("#")) v = "#" + v;
+    if (!/^#[0-9a-fA-F]{6}$/.test(v)) return;
+    $(`[data-theme-color="${k}"]`).value = v.toLowerCase();
+  } else {
+    $(`[data-theme-hex="${k}"]`).value = v.toUpperCase();
+  }
+  state.draft.theme[k] = v.toUpperCase();
+  state.draft.theme.preset = "custom";
+  paintThemeExtras();
+  updatePublishBar();
+});
 
 /* ---------- Shop settings ---------- */
 
@@ -636,6 +871,35 @@ document.addEventListener("click", async (e) => {
   if (!draft) return;
   const cat = draft.categories[state.menuCat];
 
+  // Pictures
+  if (d.itemPhoto != null) {
+    const id = await uploadImage("item");
+    if (id) { cat.items[Number(d.itemPhoto)].image = id; rerender(); }
+    return;
+  }
+  if (d.itemPhotoDel != null) { cat.items[Number(d.itemPhotoDel)].image = ""; rerender(); return; }
+  if ("catPhoto" in d) {
+    const id = await uploadImage("section");
+    if (id) { cat.image = id; rerender(); }
+    return;
+  }
+  if ("catPhotoDel" in d) { cat.image = ""; rerender(); return; }
+  if (d.mediaPhoto) {
+    const id = await uploadImage(d.mediaPhoto);
+    if (id) { themeOf(); draft.media[d.mediaPhoto] = id; rerender(); }
+    return;
+  }
+  if (d.mediaDel) { themeOf(); draft.media[d.mediaDel] = ""; rerender(); return; }
+  // Theme
+  if (d.preset) {
+    const p = THEME_PRESETS[d.preset];
+    themeOf();
+    Object.assign(draft.theme, { preset: d.preset, brand: p.brand, accent: p.accent, soft: p.soft, background: p.background });
+    rerender();
+    return;
+  }
+  if ("themeReset" in d) { draft.theme = { ...DEFAULT_THEME }; rerender(); return; }
+
   // Menu sections
   if (d.pickCat != null) { state.menuCat = Number(d.pickCat); rerender(); return; }
   if ("addCat" in d) {
@@ -675,7 +939,7 @@ document.addEventListener("click", async (e) => {
     rerender(); return;
   }
   // Extras
-  if ("addGroup" in d) { draft.extras.push({ id: uid("group"), name: "New group", items: [] }); rerender(); return; }
+  if ("addGroup" in d) { draft.extras.push({ id: uid("group"), name: "New group", sections: [], max: 0, items: [] }); rerender(); return; }
   if (d.moveGroup != null) { move(draft.extras, Number(d.moveGroup), Number(d.dir)); rerender(); return; }
   if (d.delGroup != null) {
     const gi = Number(d.delGroup);
@@ -696,6 +960,21 @@ document.addEventListener("click", async (e) => {
     rerender(); return;
   }
   if ("clearHours" in d) { draft.settings.hours = draft.settings.hours.map((h) => ({ ...h, open: "", close: "", closed: false })); rerender(); return; }
+});
+
+// Extras: offered-on sections and pick limit
+main.addEventListener("change", (e) => {
+  const t = e.target;
+  if (t.dataset.groupSection != null) {
+    const g = state.draft.extras[Number(t.dataset.groupSection)];
+    const set = new Set(g.sections || []);
+    if (t.checked) set.add(t.value); else set.delete(t.value);
+    g.sections = state.draft.categories.map((c) => c.id).filter((id) => set.has(id));
+    rerender();
+  } else if (t.dataset.groupMax != null) {
+    state.draft.extras[Number(t.dataset.groupMax)].max = Number(t.value);
+    updatePublishBar();
+  }
 });
 
 // Order search & range
