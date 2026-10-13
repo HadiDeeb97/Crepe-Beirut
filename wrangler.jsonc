@@ -16,5 +16,8 @@
   "d1_databases": [
     { "binding": "CREPE_DB", "database_name": "crepe-beirut" }
   ],
+  // Keep variables added in the Cloudflare dashboard when deploying from GitHub.
+  // (Secrets such as ADMIN_PASSWORD are always kept.)
+  "keep_vars": true,
   "observability": { "enabled": true }
 }
