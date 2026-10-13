@@ -41,15 +41,15 @@
   <div class="gate-card gate-wide">
     <div class="gate-badge" aria-hidden="true"><svg><use href="#cb-mark"></use></svg></div>
     <h1>Finish setting up the admin</h1>
-    <p class="muted">The website works, but the admin needs two settings in your Cloudflare Pages project first.</p>
+    <p class="muted">The website works, but the admin needs two things in Cloudflare first.</p>
     <ol class="setup-steps">
       <li data-setup="database">
-        <b>Connect a database.</b> In Cloudflare, open <i>Storage &amp; Databases → D1</i> and create a database (for example <code>crepe-beirut</code>). Then open your Pages project, go to <i>Settings → Bindings</i>, add a <i>D1 database</i> binding named <code>DB</code>, and pick that database.
+        <b>Database.</b> On a Cloudflare Worker it is created automatically on deploy. If this step isn't done, check that the latest deployment finished. On Cloudflare Pages, create a D1 database and add it under <i>Settings → Bindings</i> with the name <code>DB</code>.
       </li>
       <li data-setup="password">
-        <b>Set an admin password.</b> In the Pages project, open <i>Settings → Variables and Secrets</i>, add a <i>Secret</i> named <code>ADMIN_PASSWORD</code>, and type a long password only staff know.
+        <b>Admin password.</b> Open the project's <i>Settings → Variables and Secrets</i>, choose <i>Add</i>, pick type <i>Secret</i>, name it <code>ADMIN_PASSWORD</code>, enter a long password only staff know, and save or deploy.
       </li>
-      <li><b>Redeploy.</b> Open <i>Deployments</i> and choose <i>Retry deployment</i> on the latest one, then reload this page.</li>
+      <li><b>Reload this page</b> once both are done.</li>
     </ol>
     <button class="btn btn-line" type="button" onclick="location.reload()">Check again</button>
   </div>

@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler pages dev public --d1=DB"
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "dev:pages": "wrangler pages dev public --d1=DB"
   },
   "devDependencies": {
     "wrangler": "^4.150.0"

@@ -9,33 +9,37 @@ The Crepe Beirut website and its admin panel.
   and edit the menu, prices, extras, website text, opening hours and shop settings. Changes go live when
   you press **Publish changes**.
 
-It runs on **Cloudflare Pages** (free plan is enough): static files in `public/`, a small API in
-`functions/`, and a **D1** database for the menu content and orders.
+It runs on Cloudflare (the free plan is enough): static files in `public/`, a small API, and a **D1**
+database for the menu content and orders. It works as a **Cloudflare Worker** (`wrangler.jsonc`,
+`src/worker.js`) or as a **Cloudflare Pages** project (`functions/`). Use one of the two.
 
-## Set it up on Cloudflare
+## Set it up as a Cloudflare Worker
 
-You need to do this once.
+1. **Create the Worker from GitHub:** *Workers & Pages → Create application → Import a repository*,
+   pick this repository. Leave the build command empty and keep the deploy command as
+   `npx wrangler deploy`.
+   - The Worker must be named **`crepe-beirut`**, the same as `name` in `wrangler.jsonc`. If yours has a
+     different name, change `name` in `wrangler.jsonc` to match it.
+2. **Deploy.** Every push to `main` deploys. On the first deploy, Wrangler creates the D1 database
+   `crepe-beirut` and connects it as `DB`. You don't need to run any SQL; the tables create themselves.
+   Don't add the database binding by hand, because deploys use `wrangler.jsonc`.
+3. **Set the admin password:** *Workers & Pages → crepe-beirut → Settings → Variables and Secrets → Add*,
+   type **Secret**, name **`ADMIN_PASSWORD`**, a long password only staff know, then **Deploy**.
+   Use type *Secret*, not *Text*: secrets are kept across deploys. Changing it signs everyone out.
+4. Open `https://crepe-beirut.<your-account>.workers.dev/admin`, sign in, and publish your first changes.
 
-1. **Create the Pages project** (skip if you already have one):
-   *Workers & Pages → Create application → Pages → Connect to Git*, pick this repository, then use:
-   - Production branch: `main`
-   - Framework preset: **None**
-   - Build command: *(empty)*
-   - Build output directory: **`public`**
+## Or set it up as Cloudflare Pages
 
-   Already created the project with `/` as the output directory? Change it in
-   *Settings → Build → Build configuration* to `public`.
-2. **Create the database:** *Storage & Databases → D1 → Create database*, name it `crepe-beirut`.
-   You don't need to run any SQL. The tables are created automatically.
-3. **Connect the database to the site:** in the Pages project, *Settings → Bindings → Add → D1 database*.
-   Variable name **`DB`**, database `crepe-beirut`. Add it for Production (and Preview if you use it).
-4. **Set the admin password:** *Settings → Variables and Secrets → Add*, type **Secret**, name
-   **`ADMIN_PASSWORD`**, and a long password that only staff know. Changing it later signs everyone out.
-5. **Redeploy:** *Deployments → … → Retry deployment* on the latest deployment, so the new settings apply.
-6. Open `https://<your-site>/admin`, sign in, and publish your first changes.
+1. *Workers & Pages → Create application → "Looking to deploy Pages? Get started" → Import an existing
+   Git repository*, pick this repository. Framework preset **None**, build command empty, build output
+   directory **`public`**.
+2. Create a D1 database (*Storage & Databases → D1*), then in the Pages project add it under
+   *Settings → Bindings → D1 database* with the variable name **`DB`**.
+3. Add the secret **`ADMIN_PASSWORD`** under *Settings → Variables and Secrets*, then retry the latest
+   deployment.
 
-Until steps 2–5 are done, the website still works from the built-in menu and orders still go to
-WhatsApp. They just aren't saved, and `/admin` shows these setup steps.
+Until the database and password are set, the website still works from the built-in menu and orders
+still go to WhatsApp. They just aren't saved, and `/admin` shows what's missing.
 
 ## Using the admin
 
@@ -67,7 +71,8 @@ public/               the website (served as-is)
   js/defaults.js      starting menu and texts, used until the first publish
   admin/              admin panel (index.html, admin.css, admin.js)
   assets/             logo files and illustrations
-functions/api/        Cloudflare Pages Functions (the API)
+src/worker.js         Worker entry: sends /api/* to the handlers below, everything else to public/
+functions/api/        API route handlers (also used directly by Cloudflare Pages)
   content.js          GET  /api/content         live content for the website
   orders.js           POST /api/orders          save an order
   admin/...           sign in/out, publish content, list and update orders
@@ -80,10 +85,10 @@ tools/                icon sprite and the script that inlines it into the pages
 ```sh
 npm install
 echo "ADMIN_PASSWORD=choose-a-local-password" > .dev.vars
-npm run dev            # http://localhost:8788 and http://localhost:8788/admin
+npm run dev            # http://localhost:8787 and http://localhost:8787/admin
 ```
 
-`wrangler pages dev` runs the same Functions and a local D1 database, so the admin and orders work
+`wrangler dev` runs the Worker with a local D1 database, so the admin and orders work
 offline too. After editing `tools/sprite.svg`, run `python3 tools/inject-sprite.py`.
 
 ## Before going live
