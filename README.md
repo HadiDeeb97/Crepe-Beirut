@@ -68,8 +68,10 @@ Speed:
 - Fonts are served from the site itself (`public/assets/fonts`), about 57 KB in total.
 - Each uploaded photo is stored twice: a full copy (shrunk to at most 1000–1600 px, WebP) and a small
   copy (480 px) used for menu thumbnails, badges and cards.
-- Images below the first screen load only when you scroll near them. Fonts, images and code are cached
-  by the browser; the page itself is always fresh.
+- Images below the first screen load only when you scroll near them. Fonts and images are cached by
+  the browser. The page, CSS and JS are checked for a newer copy on every visit (a tiny request), so a
+  browser never mixes a new page with old code. After big changes you can also run
+  `python3 tools/bump-version.py` to give the CSS/JS files new addresses.
 
 How orders work:
 
