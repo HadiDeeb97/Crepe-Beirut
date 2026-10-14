@@ -1,6 +1,6 @@
 // POST /api/orders: save an order from the website before the customer sends it on WhatsApp.
 // Prices are recalculated here from the live menu; prices sent by the browser are ignored.
-import { db, fail, json, loadContent, readJson, sameOrigin } from "../../lib/server.js";
+import { bumpOrdersVersion, db, fail, json, loadContent, readJson, sameOrigin } from "../../lib/server.js";
 import { indexContent, priceLine, orderNumber, MAX_LINES } from "../../public/js/shared.js";
 
 const clip = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
@@ -43,10 +43,14 @@ export async function onRequestPost({ request, env }) {
   const itemCount = lines.reduce((t, l) => t + l.qty, 0);
   const now = new Date().toISOString();
 
-  const row = await d.prepare(
-    `INSERT INTO orders (created_at, updated_at, status, type, name, phone, address, notes, lines, item_count, subtotal, fee, total)
-     VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
-  ).bind(now, now, type, name, phone, address, notes, JSON.stringify(lines), itemCount, subtotal, fee, total).first();
+  const [inserted] = await d.batch([
+    d.prepare(
+      `INSERT INTO orders (created_at, updated_at, status, type, name, phone, address, notes, lines, item_count, subtotal, fee, total)
+       VALUES (?, ?, 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+    ).bind(now, now, type, name, phone, address, notes, JSON.stringify(lines), itemCount, subtotal, fee, total),
+    bumpOrdersVersion(d)
+  ]);
+  const row = inserted.results[0];
 
   return json({ id: row.id, number: orderNumber(row.id), lines, subtotal, fee, total }, { status: 201 });
 }

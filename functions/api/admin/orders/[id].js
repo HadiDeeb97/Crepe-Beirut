@@ -1,5 +1,5 @@
 // PATCH /api/admin/orders/:id { status?, staffNote? }
-import { db, fail, json, readJson, rowToOrder } from "../../../../lib/server.js";
+import { bumpOrdersVersion, db, fail, json, readJson, rowToOrder } from "../../../../lib/server.js";
 import { ORDER_STATUSES } from "../../../../public/js/shared.js";
 
 export async function onRequestPatch({ request, env, params }) {
@@ -19,7 +19,11 @@ export async function onRequestPatch({ request, env, params }) {
   if (!sets.length) return fail(400, "Nothing to change.");
   sets.push("updated_at = ?"); args.push(new Date().toISOString());
 
-  const row = await d.prepare("UPDATE orders SET " + sets.join(", ") + " WHERE id = ? RETURNING *").bind(...args, id).first();
+  const [updated] = await d.batch([
+    d.prepare("UPDATE orders SET " + sets.join(", ") + " WHERE id = ? RETURNING *").bind(...args, id),
+    bumpOrdersVersion(d)
+  ]);
+  const row = updated.results[0];
   if (!row) return fail(404, "That order does not exist.");
   return json({ order: rowToOrder(row) });
 }

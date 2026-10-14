@@ -13,9 +13,10 @@ import * as logout from "../functions/api/admin/logout.js";
 import * as adminContent from "../functions/api/admin/content.js";
 import * as adminOrders from "../functions/api/admin/orders/index.js";
 import * as adminOrder from "../functions/api/admin/orders/[id].js";
+import * as adminOrdersVersion from "../functions/api/admin/orders/version.js";
 import * as image from "../functions/api/images/[id].js";
 import * as adminImages from "../functions/api/admin/images.js";
-import { fail } from "../lib/server.js";
+import { fail, isDailyLimitError } from "../lib/server.js";
 import { renderHome } from "../lib/page.js";
 
 const ROUTES = [
@@ -28,6 +29,7 @@ const ROUTES = [
   { path: /^\/api\/admin\/content$/, mod: adminContent, admin: true },
   { path: /^\/api\/admin\/orders$/, mod: adminOrders, admin: true },
   { path: /^\/api\/admin\/images$/, mod: adminImages, admin: true },
+  { path: /^\/api\/admin\/orders\/version$/, mod: adminOrdersVersion, admin: true },
   { path: /^\/api\/admin\/orders\/(?<id>[^/]+)$/, mod: adminOrder, admin: true }
 ];
 
@@ -58,6 +60,7 @@ export default {
         return r.admin ? await adminGuard.onRequest({ ...context, next: run }) : await run();
       } catch (e) {
         console.error(e);
+        if (isDailyLimitError(e)) return fail(503, "The database reached Cloudflare's free daily limit. It resets at midnight UTC (3 AM in Beirut). Orders still go to WhatsApp.", { code: "daily-limit" });
         return fail(500, "Something went wrong on the server. Please try again.");
       }
     }

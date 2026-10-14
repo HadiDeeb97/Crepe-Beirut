@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610141555";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610142237";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -225,6 +225,7 @@ async function loadOrders({ quiet = false } = {}) {
     o.summary = data.summary;
     o.newestId = data.newestId;
     o.fetchedAt = Date.now();
+    lastFullLoad = Date.now();
     o.error = "";
     if (prevNewest != null && data.newestId > prevNewest) {
       for (const x of data.orders) if (x.id > prevNewest) freshIds.add(x.id);
@@ -253,10 +254,24 @@ function updateWaitingBadge() {
   document.title = (n ? "(" + n + ") " : "") + "Crepe Beirut Admin";
 }
 
+// Every 20 s ask "has any order changed?" (one tiny read). Reload the full list only when the answer
+// is yes, and at least every 5 minutes so "today" and the time-ago labels stay right.
+let ordersVersion = null;
+let lastFullLoad = 0;
+async function checkForChanges() {
+  if (document.hidden) return;
+  try {
+    const { version } = await api("orders/version");
+    if (version !== ordersVersion || Date.now() - lastFullLoad > 5 * 60000) {
+      ordersVersion = version;
+      await loadOrders({ quiet: true });
+    }
+  } catch { /* a failed check is retried on the next tick */ }
+}
 function startPolling() {
   clearInterval(pollTimer);
-  pollTimer = setInterval(() => { if (!document.hidden) loadOrders({ quiet: true }); }, 20000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) loadOrders({ quiet: true }); });
+  pollTimer = setInterval(checkForChanges, 20000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForChanges(); });
 }
 
 function renderOrders() {
@@ -303,7 +318,7 @@ function paintOrders() {
 
   const live = $("[data-live]");
   live.classList.toggle("off", !!o.error);
-  $("[data-live-text]").textContent = o.error ? "Not updating" : "Live · updates every 20 s";
+  $("[data-live-text]").textContent = o.error ? "Not updating" : "Live · checks every 20 s";
 
   const list = $("[data-order-list]");
   if (!o.fetchedAt && !o.error) list.innerHTML = `<div class="list-empty">Loading orders…</div>`;
