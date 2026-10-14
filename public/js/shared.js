@@ -35,7 +35,7 @@ export const BODY_FONTS = {
 };
 
 export const DEFAULT_THEME = {
-  preset: "original", ...THEME_PRESETS.original, displayFont: "Fraunces", bodyFont: "Figtree", corners: "soft", pattern: "stripes"
+  preset: "original", ...THEME_PRESETS.original, displayFont: "Fraunces", bodyFont: "Figtree", corners: "soft", pattern: "stripes", mode: "light"
 };
 delete DEFAULT_THEME.label;
 
@@ -343,7 +343,8 @@ export function normalizeContent(raw, defaults) {
     displayFont: DISPLAY_FONTS[th.displayFont] ? th.displayFont : DEFAULT_THEME.displayFont,
     bodyFont: BODY_FONTS[th.bodyFont] ? th.bodyFont : DEFAULT_THEME.bodyFont,
     corners: ["soft", "round", "square"].includes(th.corners) ? th.corners : DEFAULT_THEME.corners,
-    pattern: ["stripes", "grid", "plain"].includes(th.pattern) ? th.pattern : DEFAULT_THEME.pattern
+    pattern: ["stripes", "grid", "plain"].includes(th.pattern) ? th.pattern : DEFAULT_THEME.pattern,
+    mode: ["light", "auto", "dark"].includes(th.mode) ? th.mode : DEFAULT_THEME.mode
   };
   if (!raw.theme) theme.preset = DEFAULT_THEME.preset;
   const m = raw.media || {};

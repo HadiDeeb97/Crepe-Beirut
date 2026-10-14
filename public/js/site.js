@@ -72,6 +72,10 @@ function applyTheme() {
   root.setProperty("--body", bf.stack);
   document.documentElement.dataset.corners = t.corners;
   document.documentElement.dataset.pattern = t.pattern;
+  // Dark mode: always light (default), always dark, or follow the visitor's device.
+  if (t.mode === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t.mode;
+  document.documentElement.style.colorScheme = t.mode === "auto" ? "light dark" : t.mode;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = t.background;
 }

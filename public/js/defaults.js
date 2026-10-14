@@ -83,7 +83,8 @@ export const DEFAULT_CONTENT = {
     "displayFont": "Fraunces",
     "bodyFont": "Figtree",
     "corners": "soft",
-    "pattern": "stripes"
+    "pattern": "stripes",
+    "mode": "light"
   },
   "media": {
     "hero": "",

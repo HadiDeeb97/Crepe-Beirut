@@ -435,6 +435,7 @@ main.addEventListener("change", (e) => {
     if (el.dataset.kind === "bool") setPath(state.draft, el.dataset.bind, el.checked);
     else setPath(state.draft, el.dataset.bind, el.value);
     if (el.dataset.alsoClear) setPath(state.draft, el.dataset.alsoClear, "");
+    if (el.dataset.bind === "theme.mode") previewPick = null;
     if (el.dataset.refresh !== "no") rerender();
   }
   updatePublishBar();
@@ -672,6 +673,14 @@ function paintThemeExtras() {
   $$("[data-preset]").forEach((b) => b.classList.toggle("on", b.dataset.preset === t.preset));
 }
 
+// Which version the preview shows: what visitors get, or the admin's pick when it depends on the device.
+let previewPick = null;
+function previewDark(t) {
+  if (t.mode === "dark") return previewPick !== "light";
+  if (t.mode === "light") return previewPick === "dark";
+  return previewPick === "dark";
+}
+
 function renderTheme() {
   const t = themeOf();
   const m = state.draft.media;
@@ -716,6 +725,8 @@ function renderTheme() {
               <div class="field"><span class="label">Corners</span>${seg("theme.corners", t.corners, [["soft", "Soft"], ["round", "Round"], ["square", "Square"]])}</div>
               <div class="field"><span class="label">Pattern</span>${seg("theme.pattern", t.pattern, [["stripes", "Stripes"], ["grid", "Grid"], ["plain", "Plain"]])}</div>
             </div>
+            <div class="field"><span class="label">Dark mode</span>${seg("theme.mode", t.mode, [["light", "Always light"], ["auto", "Follow the visitor's device"], ["dark", "Always dark"]])}
+              <p class="help">${{ light: "Everyone sees the light colours above.", auto: "Visitors whose phone or computer is set to dark mode see the dark version; everyone else sees light.", dark: "Everyone sees the dark version." }[t.mode]}</p></div>
           </div>
           <div class="section">
             <div class="section-title"><h2>Home page picture</h2><p>The big picture at the top of the website. A wide photo of your crepes or shop works best.</p></div>
@@ -732,8 +743,13 @@ function renderTheme() {
         </div>
       </div>
       <aside class="theme-preview">
-        <p class="label">Preview</p>
-        <div class="tp card" data-preview data-pattern="${t.pattern}">
+        <div class="preview-bar"><p class="label">Preview</p>
+          <div class="segmented" role="radiogroup" aria-label="Preview colours">
+            <label><input type="radio" name="pv-mode" value="light" data-preview-mode ${previewDark(t) ? "" : "checked"}><span>Light</span></label>
+            <label><input type="radio" name="pv-mode" value="dark" data-preview-mode ${previewDark(t) ? "checked" : ""}><span>Dark</span></label>
+          </div>
+        </div>
+        <div class="tp card ${previewDark(t) ? "dark" : ""}" data-preview data-pattern="${t.pattern}">
           <div class="tp-head"><svg class="tp-mark" aria-hidden="true"><use href="#cb-mark"></use></svg><span class="tp-pill">Your order <b>2</b></span></div>
           <div class="tp-hero">
             <div class="tp-copy"><p class="tp-kicker">Crepes · Waffles</p><h3 class="tp-h">${esc(state.draft.texts.heroTitle)}</h3><span class="tp-btn">Start your order</span></div>
@@ -750,6 +766,13 @@ function renderTheme() {
     </div>`;
   paintThemeExtras();
 }
+
+main.addEventListener("change", (e) => {
+  if (!e.target.matches("[data-preview-mode]")) return;
+  previewPick = e.target.value;
+  const pv = $("[data-preview]");
+  if (pv) pv.classList.toggle("dark", previewPick === "dark");
+});
 
 main.addEventListener("input", (e) => {
   const el = e.target;
