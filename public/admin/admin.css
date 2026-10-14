@@ -366,6 +366,13 @@ code { font-size: 13px; background: var(--tint); padding: 1px 6px; border-radius
 .hrow input[type="time"] { min-height: 38px; }
 .hrow.closed input[type="time"] { opacity: .35; }
 
+/* About facts */
+.facts-edit { display: grid; gap: 8px; }
+.fact-row { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(90px, .7fr) minmax(0, 1.4fr) 34px; gap: 8px; align-items: center; }
+.fact-row select { min-height: 40px; padding: 0 10px; border-radius: var(--r-sm); border: 1px solid var(--line-2); background: var(--paper); font-size: 13.5px; }
+.fact-auto { font-size: 13px; }
+@media (max-width: 700px) { .fact-row { grid-template-columns: minmax(0, 1fr) 34px; } .fact-row > :nth-child(2), .fact-row > :nth-child(3) { grid-column: 1; } }
+
 /* ---------- Photos ---------- */
 .pic-cell { display: grid; justify-items: center; gap: 2px; }
 .photo-btn {

@@ -48,7 +48,7 @@ still go to WhatsApp. They just aren't saved, and `/admin` shows what's missing.
 | **Orders** | See today's orders, sales and what's waiting. Accept, complete or cancel an order, message or call the customer, open the address in Maps, and add staff notes. New orders appear by themselves (every 20 seconds). Turn on the bell for a chime. |
 | **Menu** | Add, rename, reorder or delete sections and items, set prices or sizes, mark items sold out, star house favourites, set choices like Hot / Iced. Add a **photo** to any item, and pick a drawing or upload a photo for each section. |
 | **Extras** | Edit toppings with their prices and stock. Each group chooses the menu sections it's **offered on** (e.g. syrups on shakes, spreads on crepes) and how many a customer **can pick**. |
-| **Website text** | Announcement bar, headline and introduction, About us, contact text. |
+| **Website text** | Announcement bar, headline and introduction, About us (text and the row of big facts, such as live item counts or your own like "12 / 25 mini pancakes a box"), contact text. |
 | **Theme** | Colour sets (Crepe Beirut, Lotus caramel, Pistachio, Strawberry, Blueberry) or your own four colours, headline and text fonts, corner style, pattern (stripes, grid, plain), light or dark default look (light, dark, or match the visitor's device) and whether customers get a sun/moon button to switch, and the home page and About pictures. A live preview shows the result, and it warns you if text would be hard to read. |
 | **Shop settings** | Pause online orders, delivery fee, **prices in US dollars** (switch on, set the exchange rate, choose which currency shows first), WhatsApp number, address and Maps link, opening hours ("Open now" on the site comes from these), social links. |
 

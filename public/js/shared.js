@@ -39,6 +39,25 @@ export const DEFAULT_THEME = {
 };
 delete DEFAULT_THEME.label;
 
+// The row of facts in "About us". kind "items"/"extras" show a live count; "text" shows your own words.
+export const DEFAULT_FACTS = [
+  { kind: "items", value: "", label: "things on the menu" },
+  { kind: "extras", value: "", label: "extras to pile on" },
+  { kind: "text", value: "12 / 25", label: "mini pancakes a box" }
+];
+
+/** HTML for the About facts list (shared by the server render and the browser). */
+export function factsHtml(content) {
+  const esc = (v) => String(v).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const items = (content.categories || []).filter((c) => c.visible).reduce((n, c) => n + c.items.length, 0);
+  const extras = (content.extras || []).reduce((n, g) => n + g.items.length, 0);
+  return (content.facts || DEFAULT_FACTS).map((f) => {
+    const value = f.kind === "items" ? items : f.kind === "extras" ? extras : f.value;
+    if (!String(value).trim() && !f.label.trim()) return "";
+    return `<li><b>${esc(value)}</b><span>${esc(f.label)}</span></li>`;
+  }).join("");
+}
+
 export const DEFAULT_MEDIA = { hero: "", heroDrawings: true, about: "" };
 
 /** URL of an uploaded image (its id is the SHA-256 of the file). size "small" = the thumbnail copy. */
@@ -359,7 +378,12 @@ export function normalizeContent(raw, defaults) {
   if (!raw.theme) theme.preset = DEFAULT_THEME.preset;
   const m = raw.media || {};
   const media = { hero: isImageId(m.hero) ? m.hero : "", heroDrawings: bool(m.heroDrawings, true), about: isImageId(m.about) ? m.about : "" };
-  return { version: 1, settings, texts, theme, media, categories, extras };
+  const facts = (Array.isArray(raw.facts) ? raw.facts : DEFAULT_FACTS).slice(0, 4).map((f) => ({
+    kind: ["items", "extras", "text"].includes(f && f.kind) ? f.kind : "text",
+    value: str(f && f.value, 24),
+    label: str(f && f.label, 40)
+  }));
+  return { version: 1, settings, texts, theme, media, facts, categories, extras };
 }
 
 /* ---------- Dates in the shop's time zone ---------- */

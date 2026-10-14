@@ -627,6 +627,7 @@ function renderTexts() {
         <div class="section-title"><h2>About us</h2></div>
         ${field("Title", "texts.aboutTitle")}
         ${field("Text", "texts.aboutText", { textarea: true, rows: 7, help: "Leave an empty line between paragraphs." })}
+        ${factsEditor()}
       </div>
       <div class="section">
         <div class="section-title"><h2>Hours &amp; contact</h2></div>
@@ -800,6 +801,24 @@ main.addEventListener("input", (e) => {
   updatePublishBar();
 });
 
+/* ---------- About facts ---------- */
+
+const FACT_KINDS = [["items", "Count of menu items"], ["extras", "Count of extras"], ["text", "My own text"]];
+
+function factsEditor() {
+  const facts = (state.draft.facts = state.draft.facts || []);
+  return `<div class="field"><span class="label">Facts under the text</span>
+    <p class="help">Short highlights in big numbers, like “12 / 25 mini pancakes a box” or “7 days a week”. Up to 4. Remove them all to hide the row.</p>
+    <div class="facts-edit">${facts.map((f, i) => `<div class="fact-row">
+      <select aria-label="What fact ${i + 1} shows" data-bind="facts.${i}.kind">${FACT_KINDS.map(([k, l]) => `<option value="${k}" ${f.kind === k ? "selected" : ""}>${l}</option>`).join("")}</select>
+      ${f.kind === "text" ? `<input class="input" aria-label="Fact ${i + 1} big text" data-bind="facts.${i}.value" value="${esc(f.value)}" placeholder="12 / 25" maxlength="24">` : `<span class="fact-auto muted">Shows the live count</span>`}
+      <input class="input" aria-label="Fact ${i + 1} label" data-bind="facts.${i}.label" value="${esc(f.label)}" placeholder="mini pancakes a box" maxlength="40">
+      <button class="icon-btn danger" type="button" data-del-fact="${i}" aria-label="Remove fact ${i + 1}">${ico("i-trash")}</button>
+    </div>`).join("")}</div>
+    ${facts.length < 4 ? `<button class="btn btn-line btn-sm" type="button" data-add-fact style="justify-self:start">${ico("i-plus")}Add a fact</button>` : ""}
+  </div>`;
+}
+
 /* ---------- Shop settings ---------- */
 
 function renderSettings() {
@@ -916,6 +935,10 @@ document.addEventListener("click", async (e) => {
 
   if (!draft) return;
   const cat = draft.categories[state.menuCat];
+
+  // About facts
+  if ("addFact" in d) { (draft.facts = draft.facts || []).push({ kind: "text", value: "", label: "" }); rerender(); const ins = $$('.fact-row input[aria-label$="big text"]'); if (ins.length) ins[ins.length - 1].focus(); return; }
+  if (d.delFact != null) { draft.facts.splice(Number(d.delFact), 1); rerender(); return; }
 
   // Pictures
   if (d.itemPhoto != null) {

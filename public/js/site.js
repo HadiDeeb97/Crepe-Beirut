@@ -1,6 +1,6 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
-  DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
+  DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
 } from "./shared.js";
 
 const CART_KEY = "crepe-beirut-order-v2";
@@ -187,10 +187,9 @@ function renderTexts() {
   sw.innerHTML = socials.map(([k, label, ico]) =>
     `<a href="${esc(s[k])}" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#${ico}"></use></svg>${label}</a>`).join("");
 
-  const itemCount = content.categories.filter((c) => c.visible).reduce((n, c) => n + c.items.length, 0);
-  const extraCount = content.extras.reduce((n, g) => n + g.items.length, 0);
-  $('[data-stat="items"]').textContent = itemCount;
-  $('[data-stat="extras"]').textContent = extraCount;
+  const facts = $("[data-facts]");
+  facts.innerHTML = factsHtml(content);
+  facts.hidden = !facts.children.length;
   $("[data-year]").textContent = new Date().getFullYear();
   renderHours();
   renderOpen();

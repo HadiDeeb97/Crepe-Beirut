@@ -76,6 +76,11 @@ export const DEFAULT_CONTENT = {
     "contactTitle": "Order, ask, or say hi.",
     "contactText": "Orders, opening hours and delivery questions all go to our WhatsApp."
   },
+  "facts": [
+    { "kind": "items", "value": "", "label": "things on the menu" },
+    { "kind": "extras", "value": "", "label": "extras to pile on" },
+    { "kind": "text", "value": "12 / 25", "label": "mini pancakes a box" }
+  ],
   "theme": {
     "preset": "original",
     "brand": "#633C20",
