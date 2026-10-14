@@ -15,7 +15,7 @@
   Cache-Control: public, max-age=604800, stale-while-revalidate=2592000
 
 /css/*
-  Cache-Control: no-cache
+  Cache-Control: public, max-age=86400
 
 /js/*
-  Cache-Control: no-cache
+  Cache-Control: public, max-age=86400

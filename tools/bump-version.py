@@ -1,7 +1,7 @@
 """Give the site's CSS and JS files new addresses so every browser fetches the new copies.
 
-The files are served with "Cache-Control: no-cache" (browsers check for a newer copy on every
-visit), so this is only a belt-and-braces step after a big change:  python3 tools/bump-version.py
+Browsers keep CSS and JS for a day (see public/_headers), so run this after every change to a
+file in public/css, public/js or public/admin:  python3 tools/bump-version.py
 """
 import datetime, pathlib, re
 
