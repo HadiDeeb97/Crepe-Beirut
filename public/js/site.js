@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
-} from "./shared.js?v=20261014";
+} from "./shared.js?v=202610141550";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -24,7 +24,7 @@ const markSvg = '<svg aria-hidden="true"><use href="#cb-mark"></use></svg>';
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=20261014").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610141550").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
@@ -710,6 +710,25 @@ $("[data-close-order]").addEventListener("click", closeOrder);
 scrim.addEventListener("click", closeOrder);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && ticket.classList.contains("open")) closeOrder(); });
 mq.addEventListener("change", () => { if (!mq.matches) closeOrder(); });
+
+/* ---------- In-page links ----------
+   Links like "Start your order" scroll smoothly to their section without adding "#menu" to the
+   address, so reopening or reloading the site starts at the top again. */
+document.addEventListener("click", (e) => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey) return;
+  const id = a.getAttribute("href").slice(1);
+  const target = id === "top" ? document.body : document.getElementById(id);
+  if (!target) return;
+  e.preventDefault();
+  const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (id === "top") window.scrollTo({ top: 0, behavior: smooth ? "smooth" : "auto" });
+  else target.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "start" });
+  if (a.classList.contains("skip")) {
+    if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+    target.focus({ preventScroll: true });
+  }
+});
 
 /* ---------- Header & toast ---------- */
 
