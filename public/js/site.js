@@ -1,6 +1,6 @@
 import { DEFAULT_CONTENT } from "./defaults.js";
 import {
-  money, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
+  money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
 } from "./shared.js";
 
@@ -25,6 +25,39 @@ let index = indexContent(content);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
+const CURRENCY_KEY = "crepe-beirut-currency";
+let currency = load(CURRENCY_KEY, null);
+
+/* ---------- Currency ---------- */
+
+const usdOn = () => !!(content.settings.showUsd && content.settings.usdRate > 0);
+const inUsd = () => usdOn() && (currency || content.settings.defaultCurrency) === "usd";
+/** A price for display, in the currency the visitor picked. L.L. stays the price of record. */
+const price = (lbp) => (inUsd() ? usd(lbp, content.settings.usdRate) : money(lbp));
+const extraPrice = (lbp) => "+" + (inUsd() ? usd(lbp, content.settings.usdRate) : Number(lbp).toLocaleString("en-US"));
+
+function renderCurrency() {
+  const sw = $("[data-cur-switch]");
+  sw.hidden = !usdOn();
+  const cur = inUsd() ? "usd" : "lbp";
+  $$("[data-currency]").forEach((r) => (r.checked = r.value === cur));
+  const s = content.settings;
+  $("[data-price-note]").textContent = inUsd()
+    ? `Prices in US dollars at ${s.usdRate.toLocaleString("en-US")} L.L. per $1. You can pay in either.`
+    : usdOn() ? "All prices in Lebanese pounds (L.L.). Tap $ at the top to see them in dollars." : "All prices in Lebanese pounds (L.L.).";
+}
+
+document.addEventListener("change", (e) => {
+  if (!e.target.matches("[data-currency]")) return;
+  currency = e.target.value;
+  save(CURRENCY_KEY, currency);
+  renderCurrency();
+  renderFavs();
+  renderMenu();
+  renderBadges();
+  renderCart();
+  if (sheet.open && sheetHit) updateSheet();
+});
 
 /* ---------- Content loading ---------- */
 
@@ -174,12 +207,12 @@ function renderFavs() {
   const shown = favs.length >= 8 ? 8 : favs.length >= 4 ? 4 : favs.length; // fill whole rows of 4
   $("[data-favs]").innerHTML = favs.slice(0, shown).map(({ it, cat }) => {
     const pic = itemPic(it, cat);
-    const price = it.options.length > 1 ? "from " + money(minPrice(it)) : money(minPrice(it));
+    const from = it.options.length > 1 ? "from " + price(minPrice(it)) : price(minPrice(it));
     return `<li class="fav">
       <div class="fav-pic${pic.photo ? " photo" : ""}">${pic.src ? `<img src="${pic.src}" alt="${pic.photo ? esc(it.name) : ""}" loading="lazy">` : `<div class="cat-badge">${markSvg}</div>`}</div>
       <div class="fav-body">
         <span class="fav-cat">${esc(cat.name)}</span>
-        <div><div class="fav-name">${esc(it.name)}</div><div class="fav-price">${price}</div></div>
+        <div><div class="fav-name">${esc(it.name)}</div><div class="fav-price">${from}</div></div>
         <button class="add" type="button" data-add="${esc(it.id)}" aria-label="Add ${esc(it.name)}">${plusIco}</button>
       </div>
     </li>`;
@@ -189,9 +222,9 @@ function renderFavs() {
 /* ---------- Menu ---------- */
 
 function priceHtml(it) {
-  if (it.options.length > 1) return it.options.map((o) => `<span><small>${esc(o.label)}</small>${money(o.price)}</span>`).join("");
-  if (it.options.length === 1) return money(it.options[0].price);
-  return money(it.price);
+  if (it.options.length > 1) return it.options.map((o) => `<span><small>${esc(o.label)}</small>${price(o.price)}</span>`).join("");
+  if (it.options.length === 1) return price(it.options[0].price);
+  return price(it.price);
 }
 
 function extrasNote(cat) {
@@ -313,7 +346,7 @@ function openSheet(hit) {
   let html = "";
   if (item.options.length) {
     html += `<fieldset class="opt-group"><legend>${cat.id === "mini-pancakes" ? "Box size" : "Size"}</legend><div class="opts">` +
-      item.options.map((o, i) => `<label class="opt"><input type="radio" name="option" value="${esc(o.label)}"${i ? "" : " checked"}><span>${esc(o.label)} <small>${money(o.price)}</small></span></label>`).join("") +
+      item.options.map((o, i) => `<label class="opt"><input type="radio" name="option" value="${esc(o.label)}"${i ? "" : " checked"}><span>${esc(o.label)} <small>${price(o.price)}</small></span></label>`).join("") +
       "</div></fieldset>";
   }
   if (cat.choice) {
@@ -323,7 +356,7 @@ function openSheet(hit) {
   }
   html += extraGroupsFor(content, cat.id).map((g) =>
     `<fieldset class="opt-group" data-max="${g.max || 0}"><legend>${esc(g.name)} <span class="hint">· ${g.max ? "pick up to " + g.max : "optional"}</span></legend><div class="opts">` +
-    g.items.map((x) => `<label class="opt"><input type="checkbox" name="extra" value="${esc(x.id)}"${x.available ? "" : " disabled"}><span>${esc(x.name)} <small>${x.available ? "+" + x.price.toLocaleString("en-US") : "sold out"}</small></span></label>`).join("") +
+    g.items.map((x) => `<label class="opt"><input type="checkbox" name="extra" value="${esc(x.id)}"${x.available ? "" : " disabled"}><span>${esc(x.name)} <small>${x.available ? extraPrice(x.price) : "sold out"}</small></span></label>`).join("") +
     "</div></fieldset>").join("");
   html += `<div class="field"><label for="sheet-note">Note for this item <span class="opt">optional</span></label><input id="sheet-note" name="note" maxlength="120" placeholder="e.g. cut in half, less sauce"></div>`;
   $("[data-sheet-body]").innerHTML = html;
@@ -349,7 +382,7 @@ function sheetLine() {
 function updateSheet() {
   const p = priceLine(index, sheetLine());
   $("[data-sheet-qty]").textContent = sheetQty;
-  $("[data-sheet-add]").textContent = "Add · " + money(p.ok ? p.total : 0);
+  $("[data-sheet-add]").textContent = "Add · " + price(p.ok ? p.total : 0);
 }
 const closeSheet = () => { if (sheet.open) sheet.close(); };
 $("[data-sheet-body]").addEventListener("change", (e) => {
@@ -446,7 +479,7 @@ function renderCart() {
     const name = p.ok ? p.name : hit ? hit.item.name : "Item no longer on the menu";
     return `<li class="line${p.ok ? "" : " bad"}">
       <span class="line-name">${esc(name)}</span>
-      <span class="line-total">${p.ok ? money(p.total) : "—"}</span>
+      <span class="line-total">${p.ok ? price(p.total) : "—"}</span>
       <span class="line-meta">${p.ok ? esc(lineMeta(p)) : "Sold out right now. Remove it to continue."}</span>
       <div class="line-ctrl">
         <div class="stepper" role="group" aria-label="Quantity of ${esc(name)}">
@@ -459,20 +492,21 @@ function renderCart() {
     </li>`;
   }).join("");
 
-  $("[data-subtotal]").textContent = money(t.sub);
+  $("[data-subtotal]").textContent = price(t.sub);
   $("[data-fee-row]").hidden = !t.fee;
-  $("[data-fee]").textContent = money(t.fee);
-  $("[data-total]").textContent = money(t.total);
+  $("[data-fee]").textContent = price(t.fee);
+  $("[data-total]").textContent = price(t.total);
   const note = $("[data-total-note]");
   const s = content.settings;
   const bits = [];
-  if (s.usdRate > 0 && t.total) bits.push("≈ $" + (t.total / s.usdRate).toFixed(2));
+  // Show the other currency under the total.
+  if (usdOn() && t.total) bits.push(inUsd() ? "= " + money(t.total) : "≈ " + usd(t.total, s.usdRate));
   if (!s.deliveryFee && orderType() === "Delivery") bits.push("If there's a delivery fee, we'll tell you on WhatsApp before we start your order.");
   note.hidden = !bits.length;
   note.textContent = bits.join(" · ");
 
   $$("[data-count]").forEach((el) => (el.textContent = t.count));
-  $("[data-bar-total]").textContent = money(t.total);
+  $("[data-bar-total]").textContent = price(t.total);
   $("[data-bag-bar]").hidden = empty;
   renderCartNotices();
 }
@@ -512,7 +546,7 @@ function buildMessage(c, number, priced, t) {
   });
   out.push("");
   if (t.fee) { out.push("Subtotal: " + money(t.sub)); out.push("Delivery: " + money(t.fee)); }
-  out.push(`*Total: ${money(t.total)}*`);
+  out.push(`*Total: ${money(t.total)}*` + (usdOn() ? ` (≈ ${usd(t.total, s.usdRate)} at ${s.usdRate.toLocaleString("en-US")} L.L./$)` : ""));
   if (c.notes) { out.push(""); out.push("*Notes:* " + c.notes); }
   return out.join("\n");
 }
@@ -671,6 +705,7 @@ function renderAll() {
   cart = cart.filter((l) => l && l.itemId && l.qty > 0 && index.items.has(l.itemId));
   applyTheme();
   renderHeroMedia();
+  renderCurrency();
   renderTexts();
   renderFavs();
   renderMenu();

@@ -16,6 +16,8 @@ export const DEFAULT_CONTENT = {
     "tiktok": "",
     "deliveryFee": 0,
     "usdRate": 0,
+    "showUsd": false,
+    "defaultCurrency": "lbp",
     "orderingOpen": true,
     "pausedMessage": "Online orders are paused right now. Message us on WhatsApp and we will help.",
     "timezone": "Asia/Beirut",

@@ -71,6 +71,12 @@ export function contrast(a, b) {
   return (x + 0.05) / (y + 0.05);
 }
 
+/** "$3.91" for an amount in L.L. at `rate` L.L. per dollar. */
+export function usd(lbp, rate) {
+  const v = (Number(lbp) || 0) / rate;
+  return "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export function money(n) {
   return Math.round(Number(n) || 0).toLocaleString("en-US") + " L.L.";
 }
@@ -267,6 +273,9 @@ export function normalizeContent(raw, defaults) {
     tiktok: /^https:\/\//.test(s.tiktok || "") ? str(s.tiktok, 300) : "",
     deliveryFee: num(s.deliveryFee),
     usdRate: num(s.usdRate),
+    // US dollar prices: shown only when switched on and a rate is set.
+    showUsd: bool(s.showUsd, false),
+    defaultCurrency: s.defaultCurrency === "usd" ? "usd" : "lbp",
     orderingOpen: bool(s.orderingOpen, true),
     pausedMessage: str(s.pausedMessage, 240) || ds.pausedMessage,
     timezone: str(s.timezone || ds.timezone, 60),

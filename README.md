@@ -50,7 +50,7 @@ still go to WhatsApp. They just aren't saved, and `/admin` shows what's missing.
 | **Extras** | Edit toppings with their prices and stock. Each group chooses the menu sections it's **offered on** (e.g. syrups on shakes, spreads on crepes) and how many a customer **can pick**. |
 | **Website text** | Announcement bar, headline and introduction, About us, contact text. |
 | **Theme** | Colour sets (Crepe Beirut, Lotus caramel, Pistachio, Strawberry, Blueberry) or your own four colours, headline and text fonts, corner style, pattern (stripes, grid, plain), dark mode (always light, always dark, or follow the visitor's device), and the home page and About pictures. A live preview shows the result, and it warns you if text would be hard to read. |
-| **Shop settings** | Pause online orders, delivery fee, dollar rate, WhatsApp number, address and Maps link, opening hours ("Open now" on the site comes from these), social links. |
+| **Shop settings** | Pause online orders, delivery fee, **prices in US dollars** (switch on, set the exchange rate, choose which currency shows first), WhatsApp number, address and Maps link, opening hours ("Open now" on the site comes from these), social links. |
 
 Photos are shrunk in the browser before upload (up to 1600 px wide for the home page picture) and
 stored in the same D1 database, so no extra Cloudflare setup is needed. When you publish, pictures the website no longer uses

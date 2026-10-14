@@ -446,7 +446,7 @@ const field = (label, path, opts = {}) => {
   const id = "f-" + path.replace(/\./g, "-");
   const help = opts.help ? `<p class="help">${opts.help}</p>` : "";
   if (opts.textarea) return `<div class="field"><label for="${id}">${label}</label><textarea id="${id}" data-bind="${path}" rows="${opts.rows || 3}" placeholder="${esc(opts.placeholder || "")}">${esc(v)}</textarea>${help}</div>`;
-  if (opts.money) return `<div class="field"><label for="${id}">${label}</label><div class="input-wrap"><input id="${id}" class="input money" inputmode="numeric" data-bind="${path}" data-kind="money" value="${fmtMoneyInput(v)}"><span class="suffix">${opts.suffix || "L.L."}</span></div>${help}</div>`;
+  if (opts.money) return `<div class="field"><label for="${id}">${label}</label><div class="input-wrap"><input id="${id}" class="input money${(opts.suffix || "").length > 5 ? " wide" : ""}" inputmode="numeric" data-bind="${path}" data-kind="money" value="${fmtMoneyInput(v)}"><span class="suffix">${opts.suffix || "L.L."}</span></div>${help}</div>`;
   return `<div class="field"><label for="${id}">${label}</label><input id="${id}" ${opts.type ? `type="${opts.type}"` : ""} data-bind="${path}" ${opts.digits ? 'data-kind="digits" inputmode="numeric"' : ""} value="${esc(v)}" placeholder="${esc(opts.placeholder || "")}" maxlength="${opts.max || 240}">${help}</div>`;
 };
 const sw = (label, path, opts = {}) => `<label class="switch"><input type="checkbox" data-bind="${path}" data-kind="bool" ${getPath(state.draft, path) ? "checked" : ""} ${opts.norefresh ? 'data-refresh="no"' : ""}><span class="track"></span>${label}</label>`;
@@ -805,8 +805,23 @@ function renderSettings() {
         ${s.orderingOpen ? "" : field("Message shown while orders are paused", "settings.pausedMessage", { textarea: true, rows: 2 })}
         <div class="grid-2">
           ${field("Delivery fee", "settings.deliveryFee", { money: true, help: "Added to delivery orders. Use 0 to confirm the fee on WhatsApp." })}
-          ${field("Lebanese pounds per US dollar", "settings.usdRate", { money: true, suffix: "/ $1", help: "Optional. When set, totals also show the amount in dollars." })}
+
         </div>
+      </div>
+      <div class="section">
+        <div class="section-title"><h2>Prices in US dollars</h2><p>Customers can switch the menu between L.L. and $. Prices in L.L. stay the official ones; dollars are worked out from your rate.</p></div>
+        ${sw("Let customers see prices in US dollars", "settings.showUsd")}
+        <div class="grid-2">
+          ${field("Exchange rate", "settings.usdRate", { money: true, suffix: "L.L. = $1", help: "How many Lebanese pounds make one dollar, e.g. 89,500. Update it when the rate changes." })}
+          <div class="field"><span class="label">Show prices first in</span>
+            <div class="segmented" role="radiogroup">
+              <label><input type="radio" name="settings.defaultCurrency" value="lbp" data-bind="settings.defaultCurrency" ${s.defaultCurrency !== "usd" ? "checked" : ""}><span>L.L.</span></label>
+              <label><input type="radio" name="settings.defaultCurrency" value="usd" data-bind="settings.defaultCurrency" ${s.defaultCurrency === "usd" ? "checked" : ""}><span>US dollars</span></label>
+            </div>
+            <p class="help">What new visitors see. Each customer can switch.</p>
+          </div>
+        </div>
+        ${s.showUsd && s.usdRate > 0 ? `<p class="help">Example: a 350,000 L.L. crepe shows as <b>$${(350000 / s.usdRate).toFixed(2)}</b>.</p>` : s.showUsd ? `<p class="help warn">Add the exchange rate so dollar prices can be shown.</p>` : ""}
       </div>
       <div class="section">
         <div class="section-title"><h2>WhatsApp</h2><p>Orders from the website open a chat with this number.</p></div>
@@ -1033,6 +1048,7 @@ function validate(c) {
       if (it.options.some((o) => !o.label.trim())) return `“${it.name}” has a size without a name.`;
     }
   }
+  if (c.settings.showUsd && !(c.settings.usdRate > 0)) return "Add the exchange rate (L.L. per $1) to show prices in US dollars, or switch dollar prices off.";
   for (const h of c.settings.hours) {
     if (!h.closed && (!!h.open !== !!h.close)) return `${DAY_NAMES[h.day]} needs both an opening and a closing time, or neither.`;
   }

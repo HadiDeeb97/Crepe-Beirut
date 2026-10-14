@@ -35,6 +35,10 @@
       <a href="#visit">Hours &amp; contact</a>
     </nav>
     <span class="status-pill" data-open-pill hidden><i></i><span data-open-label></span></span>
+    <div class="cur-switch" role="radiogroup" aria-label="Show prices in" data-cur-switch hidden>
+      <label><input type="radio" name="currency" value="lbp" data-currency><span>L.L.</span></label>
+      <label><input type="radio" name="currency" value="usd" data-currency><span>$</span></label>
+    </div>
     <button class="bag-btn" type="button" data-open-order aria-label="Open your order">
       <svg class="ico" aria-hidden="true"><use href="#i-bag"></use></svg>
       <span class="bag-label">Your order</span>
@@ -104,7 +108,7 @@
       <div class="menu-intro">
         <h2 id="menu-title">The menu</h2>
           <svg class="drizzle" viewBox="0 0 140 22" aria-hidden="true"><path pathLength="1" d="M3 8c9-6 15 6 24 0s15-6 24 0 15 6 24 0 15-6 24 0 15 6 24 0 9-4 14-1"/><circle class="drip" cx="76" cy="12" r="3.2"/></svg>
-        <p>All prices in Lebanese pounds (L.L.). Tap <b>+</b> to add, and choose sizes and extras as you go.</p>
+        <p><span data-price-note>All prices in Lebanese pounds (L.L.).</span> Tap <b>+</b> to add, and choose sizes and extras as you go.</p>
       </div>
       <div class="menu-tools" data-tools>
         <label class="search">
