@@ -629,8 +629,16 @@ button, input, textarea { font: inherit; color: inherit; }
   .ticket-close { display: inline-grid; }
   .bag-bar { display: flex; }
   .head-nav { display: none; }
-  .fav-grid { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(220px, 1fr); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; scrollbar-width: none; }
+  /* A sideways-only row: no vertical scrolling inside it, so swiping up and down scrolls the page. */
+  .fav-grid {
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(220px, 1fr);
+    overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; touch-action: pan-x pan-y;
+    scroll-snap-type: x mandatory; scrollbar-width: none;
+    padding-block: 4px 12px; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); scroll-padding-inline: var(--gutter);
+  }
   .fav-grid::-webkit-scrollbar { display: none; }
+  .fav, .fav:hover { transform: none; }
+  .motion .fav.reveal, .motion .fav.reveal.shown, .motion .fav.reveal.shown:hover { transform: none; }
   .fav { scroll-snap-align: start; }
 }
 @media (max-width: 799px) {
