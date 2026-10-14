@@ -14,6 +14,7 @@ const PICTURES = ["crepe", "pancakes", "waffle", "spreader", "iced-cup", "shake"
 
 // Longest side in pixels after shrinking, per use.
 const MAX_SIDE = { item: 1000, section: 600, hero: 1600, about: 900 };
+const SMALL_SIDE = 480;
 
 function pickFile() {
   return new Promise((resolve) => {
@@ -25,7 +26,7 @@ function pickFile() {
   });
 }
 
-async function shrink(file, maxSide) {
+async function shrink(file, maxSide, quality = 0.82) {
   let src;
   try {
     src = await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -44,7 +45,7 @@ async function shrink(file, maxSide) {
   const g = c.getContext("2d");
   const toBlob = (type, q) => new Promise((r) => c.toBlob(r, type, q));
   g.drawImage(src, 0, 0, c.width, c.height);
-  let blob = await toBlob("image/webp", 0.84);
+  let blob = await toBlob("image/webp", maxSide <= SMALL_SIDE ? 0.78 : quality);
   if (!blob || blob.type !== "image/webp") {
     g.globalCompositeOperation = "destination-over";
     g.fillStyle = "#ffffff";
@@ -66,6 +67,11 @@ async function uploadImage(kind) {
     const data = await r.json().catch(() => ({}));
     if (r.status === 401) { showView("login"); return null; }
     if (!r.ok) { toast(data.error || "The picture couldn't be uploaded.", true); return null; }
+    // A small copy for thumbnails and cards, so the menu loads fast. If it fails, the full one is used.
+    try {
+      const small = await shrink(file, SMALL_SIDE);
+      await fetch("/api/admin/images?of=" + data.id, { method: "POST", body: small, headers: { "content-type": small.type }, credentials: "same-origin" });
+    } catch { /* the full picture still works */ }
     toast("Picture added. Publish to show it on the website.");
     return data.id;
   } catch (e) {
@@ -479,7 +485,7 @@ function renderMenu() {
             </div>
             <div class="field"><span class="label">Picture</span>
               <div class="pic-picker">
-                ${c.image ? `<span class="pic-opt"><span class="thumb photo-sel" style="width:56px;height:56px"><img src="${imageUrl(c.image)}" alt="Section photo"></span></span>` : ""}
+                ${c.image ? `<span class="pic-opt"><span class="thumb photo-sel" style="width:56px;height:56px"><img src="${imageUrl(c.image, "small")}" alt="Section photo"></span></span>` : ""}
                 ${PICTURES.map((p) => `<label class="pic-opt" title="${p === "badge" ? "Logo" : p}"><input type="radio" name="pic" value="${p}" data-bind="${base}.img" data-also-clear="${base}.image" ${!c.image && c.img === p ? "checked" : ""}>${thumb(p)}</label>`).join("")}
                 <button type="button" class="pic-upload" data-cat-photo title="Upload your own photo">${ico("i-upload")}<span>${c.image ? "Change" : "Upload"}</span></button>
               </div>
@@ -535,7 +541,7 @@ function itemRow(it, ci, ii, n) {
   return `<div class="irow ${it.available ? "" : "out"}">
     <span class="grip muted num" aria-hidden="true">${ii + 1}</span>
     <div class="pic-cell">${it.image
-      ? `<button class="photo-btn has" type="button" data-item-photo="${ii}" title="Change photo"><img src="${imageUrl(it.image)}" alt=""></button><button class="link-btn" type="button" data-item-photo-del="${ii}">Remove</button>`
+      ? `<button class="photo-btn has" type="button" data-item-photo="${ii}" title="Change photo"><img src="${imageUrl(it.image, "small")}" alt="" loading="lazy"></button><button class="link-btn" type="button" data-item-photo-del="${ii}">Remove</button>`
       : `<button class="photo-btn" type="button" data-item-photo="${ii}" title="Add a photo">${ico("i-image")}<span>Photo</span></button>`}</div>
     <div class="name-cell">
       <input class="input" aria-label="Item name" data-bind="${p}.name" data-k="name" value="${esc(it.name)}" maxlength="80">
@@ -648,7 +654,8 @@ function themeOf() {
 function previewVars(t) {
   const df = DISPLAY_FONTS[t.displayFont] || DISPLAY_FONTS.Fraunces;
   const bf = BODY_FONTS[t.bodyFont] || BODY_FONTS.Figtree;
-  useFont(df); useFont(bf);
+  if (t.displayFont !== "Fraunces") useFont(df);
+  if (t.bodyFont !== "Figtree") useFont(bf);
   const r = { soft: "14px", round: "22px", square: "5px" }[t.corners];
   return `--p-brand:${t.brand};--p-accent:${t.accent};--p-soft:${t.soft};--p-bg:${t.background};--p-display:${df.stack};--p-body:${bf.stack};--p-r:${r};--p-pill:${t.corners === "square" ? "6px" : "999px"}`;
 }

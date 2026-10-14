@@ -1,7 +1,8 @@
 // POST /api/admin/images (body: the image file). Saves it and returns { id, url }.
+// POST /api/admin/images?of=<id> saves the small thumbnail copy of picture <id>.
 // The admin panel shrinks photos before uploading, so files are small.
 import { db, fail, json } from "../../../lib/server.js";
-import { imageUrl } from "../../../public/js/shared.js";
+import { imageUrl, isImageId } from "../../../public/js/shared.js";
 
 const MAX_BYTES = 1.5 * 1024 * 1024;
 
@@ -21,9 +22,19 @@ export async function onRequestPost({ request, env }) {
   const bytes = new Uint8Array(buf);
   const type = sniff(bytes);
   if (!type) return fail(415, "Use a JPG, PNG or WebP picture.");
-  const hash = await crypto.subtle.digest("SHA-256", buf);
-  const id = Array.from(new Uint8Array(hash), (x) => x.toString(16).padStart(2, "0")).join("");
+  const of = new URL(request.url).searchParams.get("of");
+  let id;
+  if (of) {
+    if (!isImageId(of)) return fail(400, "Unknown picture.");
+    const parent = await d.prepare("SELECT id FROM images WHERE id = ?").bind(of).first();
+    if (!parent) return fail(404, "Upload the full picture first.");
+    id = of + "s";
+    await d.prepare("DELETE FROM images WHERE id = ?").bind(id).run();
+  } else {
+    const hash = await crypto.subtle.digest("SHA-256", buf);
+    id = Array.from(new Uint8Array(hash), (x) => x.toString(16).padStart(2, "0")).join("");
+  }
   await d.prepare("INSERT OR IGNORE INTO images (id, type, data, size, created_at) VALUES (?, ?, ?, ?, ?)")
     .bind(id, type, bytes, bytes.byteLength, new Date().toISOString()).run();
-  return json({ id, url: imageUrl(id), size: bytes.byteLength }, { status: 201 });
+  return json({ id, url: "/api/images/" + id, size: bytes.byteLength }, { status: 201 });
 }

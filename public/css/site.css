@@ -110,6 +110,9 @@
   color-scheme: dark;
 }
 
+@font-face { font-family: "Fraunces"; src: url("../assets/fonts/fraunces-soft-750.woff2") format("woff2"); font-weight: 500 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Figtree"; src: url("../assets/fonts/figtree-var.woff2") format("woff2"); font-weight: 300 900; font-style: normal; font-display: swap; }
+
 /* ---------- Brand patterns ---------- */
 .pat-stripes { background: repeating-linear-gradient(90deg, var(--stripe-a) 0 var(--sw, 9%), var(--stripe-b) var(--sw, 9%) calc(var(--sw, 9%) * 2)); }
 
@@ -654,6 +657,16 @@ button, input, textarea { font: inherit; color: inherit; }
   .cat-badge { width: 60px; height: 60px; }
   .cat-head h3 { font-size: 1.6rem; }
   .hero-cta .btn { flex: 1 1 auto; }
+}
+@media (max-width: 420px) {
+  .head-inner { gap: 8px; }
+  .lockup { gap: 6px; }
+  .lockup-mark { width: 38px; height: 30px; }
+  .lockup-word { width: 88px; height: 18px; }
+  .cur-switch span { min-width: 30px; padding: 5px 7px; }
+}
+@media (max-width: 350px) {
+  .lockup-word { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

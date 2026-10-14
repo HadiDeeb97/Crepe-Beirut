@@ -16,6 +16,7 @@ import * as adminOrder from "../functions/api/admin/orders/[id].js";
 import * as image from "../functions/api/images/[id].js";
 import * as adminImages from "../functions/api/admin/images.js";
 import { fail } from "../lib/server.js";
+import { renderHome } from "../lib/page.js";
 
 const ROUTES = [
   { path: /^\/api\/content$/, mod: content },
@@ -39,6 +40,11 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
+    if (path === "/" || path === "/index.html") {
+      const asset = await env.ASSETS.fetch(request);
+      if (request.method !== "GET" || !asset.ok) return asset;
+      return renderHome(request, env, asset);
+    }
     if (!path.startsWith("/api/")) return env.ASSETS.fetch(request);
 
     for (const r of ROUTES) {

@@ -41,9 +41,9 @@ delete DEFAULT_THEME.label;
 
 export const DEFAULT_MEDIA = { hero: "", heroDrawings: true, about: "" };
 
-/** URL of an uploaded image (its id is the SHA-256 of the file). */
-export function imageUrl(id) {
-  return id ? "/api/images/" + id : "";
+/** URL of an uploaded image (its id is the SHA-256 of the file). size "small" = the thumbnail copy. */
+export function imageUrl(id, size) {
+  return id ? "/api/images/" + id + (size === "small" ? "s" : "") : "";
 }
 export const isImageId = (v) => /^[a-f0-9]{64}$/.test(v || "");
 

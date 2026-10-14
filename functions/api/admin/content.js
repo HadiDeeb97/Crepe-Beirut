@@ -1,7 +1,7 @@
 // GET  /api/admin/content: the saved content (or the defaults) plus when it was published.
 // PUT  /api/admin/content { content, baseUpdatedAt }: publish new content, then delete stored
 //      pictures the website no longer uses (replaced or removed photos).
-import { DEFAULT_CONTENT, db, fail, json, loadContent, readJson } from "../../../lib/server.js";
+import { DEFAULT_CONTENT, db, fail, forgetCachedContent, json, loadContent, readJson } from "../../../lib/server.js";
 import { imageIdsIn, normalizeContent } from "../../../public/js/shared.js";
 
 // Pictures uploaded this recently are kept even if unused, so an upload still being worked on
@@ -30,6 +30,7 @@ export async function onRequestPut({ request, env }) {
   const used = imageIdsIn(content);
   const stored = (await d.prepare("SELECT id, created_at FROM images").all()).results;
   const storedIds = new Set(stored.map((r) => r.id));
+  const baseOf = (id) => id.slice(0, 64); // "<id>s" rows are the small copies
   const missing = [...used].filter((id) => !storedIds.has(id));
   if (missing.length) {
     return fail(409, missing.length === 1
@@ -42,12 +43,16 @@ export async function onRequestPut({ request, env }) {
     "INSERT INTO content (key, value, updated_at) VALUES ('site', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
   ).bind(JSON.stringify(content), now).run();
 
+  forgetCachedContent();
+
   // Delete pictures nothing uses any more.
   const cutoff = Date.now() - KEEP_NEW_UPLOADS_MS;
-  const unused = stored.filter((r) => !used.has(r.id) && Date.parse(r.created_at) < cutoff).map((r) => r.id);
+  const unusedRows = stored.filter((r) => !used.has(baseOf(r.id)) && Date.parse(r.created_at) < cutoff);
+  const unused = unusedRows.map((r) => r.id);
+  const removedPictures = unusedRows.filter((r) => r.id.length === 64).length;
   for (let i = 0; i < unused.length; i += 50) {
     const chunk = unused.slice(i, i + 50);
     await d.prepare("DELETE FROM images WHERE id IN (" + chunk.map(() => "?").join(",") + ")").bind(...chunk).run();
   }
-  return json({ content, updatedAt: now, removedImages: unused.length });
+  return json({ content, updatedAt: now, removedImages: removedPictures });
 }

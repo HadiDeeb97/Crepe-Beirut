@@ -1,4 +1,3 @@
-import { DEFAULT_CONTENT } from "./defaults.js";
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
@@ -15,13 +14,17 @@ const load = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSO
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage unavailable */ } };
 const imgSrc = (img) => (img && img !== "badge" ? `assets/img/${img}.webp` : "");
 // Picture for a section or item: an uploaded photo if there is one, else the section's drawing.
-const catPic = (cat) => (cat.image ? { src: imageUrl(cat.image), photo: true } : { src: imgSrc(cat.img), photo: false });
-const itemPic = (it, cat) => (it.image ? { src: imageUrl(it.image), photo: true } : catPic(cat));
+// size "small" uses the thumbnail copy (menu rows, badges, cards); the full picture is for the item pop-up.
+const catPic = (cat, size) => (cat.image ? { src: imageUrl(cat.image, size), photo: true } : { src: imgSrc(cat.img), photo: false });
+const itemPic = (it, cat, size) => (it.image ? { src: imageUrl(it.image, size), photo: true } : catPic(cat, size));
 const plusIco = '<svg class="ico" aria-hidden="true"><use href="#i-plus"></use></svg>';
 const markSvg = '<svg aria-hidden="true"><use href="#cb-mark"></use></svg>';
 
-let content = DEFAULT_CONTENT;
-let index = indexContent(content);
+// The server puts the live content into the page (#cb-data). The built-in menu in defaults.js is
+// only downloaded if that's missing and the API can't be reached.
+let content = null;
+let index = null;
+const loadDefaults = () => import("./defaults.js").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
@@ -72,7 +75,7 @@ async function fetchContent() {
     save(CONTENT_CACHE, data.content);
     return { content: data.content, ordersEnabled: !!data.ordersEnabled };
   } catch {
-    return { content: load(CONTENT_CACHE, null) || DEFAULT_CONTENT, ordersEnabled: false };
+    return { content: load(CONTENT_CACHE, null) || (await loadDefaults()), ordersEnabled: false };
   } finally {
     clearTimeout(t);
   }
@@ -83,6 +86,8 @@ async function fetchContent() {
 const fontLinks = new Map();
 function useFont(spec) {
   if (!spec || fontLinks.has(spec.css)) return;
+  // The server already added the link for the published fonts.
+  if ([...document.querySelectorAll('link[rel="stylesheet"]')].some((l) => l.href.includes(spec.css))) { fontLinks.set(spec.css, null); return; }
   const l = document.createElement("link");
   l.rel = "stylesheet";
   l.href = "https://fonts.googleapis.com/css2?family=" + spec.css + "&display=swap";
@@ -230,10 +235,10 @@ function renderFavs() {
   $("[data-favs-section]").hidden = !favs.length;
   const shown = favs.length >= 8 ? 8 : favs.length >= 4 ? 4 : favs.length; // fill whole rows of 4
   $("[data-favs]").innerHTML = favs.slice(0, shown).map(({ it, cat }) => {
-    const pic = itemPic(it, cat);
+    const pic = itemPic(it, cat, "small");
     const from = it.options.length > 1 ? "from " + price(minPrice(it)) : price(minPrice(it));
     return `<li class="fav">
-      <div class="fav-pic${pic.photo ? " photo" : ""}">${pic.src ? `<img src="${pic.src}" alt="${pic.photo ? esc(it.name) : ""}" loading="lazy">` : `<div class="cat-badge">${markSvg}</div>`}</div>
+      <div class="fav-pic${pic.photo ? " photo" : ""}">${pic.src ? `<img src="${pic.src}" alt="${pic.photo ? esc(it.name) : ""}" loading="lazy" decoding="async" width="480" height="360">` : `<div class="cat-badge">${markSvg}</div>`}</div>
       <div class="fav-body">
         <span class="fav-cat">${esc(cat.name)}</span>
         <div><div class="fav-name">${esc(it.name)}</div><div class="fav-price">${from}</div></div>
@@ -261,10 +266,10 @@ function extrasNote(cat) {
 function renderMenu() {
   const cats = content.categories.filter((c) => c.visible && c.items.length);
   $("[data-menu]").innerHTML = cats.map((cat) => {
-    const pic = catPic(cat);
+    const pic = catPic(cat, "small");
     const rows = cat.items.map((it) => {
       const out = !it.available;
-      const thumb = it.image ? `<img class="item-pic" src="${imageUrl(it.image)}" alt="" loading="lazy">` : "";
+      const thumb = it.image ? `<img class="item-pic" src="${imageUrl(it.image, "small")}" alt="" loading="lazy" decoding="async" width="60" height="60">` : "";
       const sub = [it.options.length === 1 ? esc(it.options[0].label) : "", it.desc ? esc(it.desc) : ""].filter(Boolean).join(" · ");
       return `<li class="item${out ? " out" : ""}${thumb ? " has-pic" : ""}" data-item="${esc(it.id)}" data-search="${esc((it.name + " " + cat.name + " " + it.desc).toLowerCase())}">
         ${thumb}<span class="item-name">${esc(it.name)}${it.featured && !out ? '<span class="tag tag-pop">Popular</span>' : ""}${out ? '<span class="tag tag-out">Sold out</span>' : ""}${sub ? `<span class="item-desc">${sub}</span>` : ""}</span>
@@ -274,7 +279,7 @@ function renderMenu() {
     }).join("");
     return `<section class="cat" id="${esc(cat.id)}" data-cat="${esc(cat.id)}" aria-labelledby="h-${esc(cat.id)}">
       <div class="cat-head">
-        <div class="cat-badge${pic.photo ? " photo" : ""}" aria-hidden="true">${pic.src ? `<img src="${pic.src}" alt="">` : markSvg}</div>
+        <div class="cat-badge${pic.photo ? " photo" : ""}" aria-hidden="true">${pic.src ? `<img src="${pic.src}" alt="" loading="lazy" decoding="async" width="74" height="74">` : markSvg}</div>
         <div><h3 id="h-${esc(cat.id)}">${esc(cat.name)}</h3><p class="cat-meta">${cat.items.length} ${cat.items.length === 1 ? "item" : "items"}${cat.blurb ? " · " + esc(cat.blurb) : ""}</p></div>
       </div>
       <ul class="items">${rows}</ul>
@@ -737,15 +742,26 @@ function renderAll() {
   renderBadges();
 }
 
-setContent(load(CONTENT_CACHE, null) || DEFAULT_CONTENT);
-renderAll();
-fetchContent().then((res) => {
+(async function boot() {
+  const inline = document.getElementById("cb-data");
+  if (inline) {
+    try {
+      const data = JSON.parse(inline.textContent);
+      ordersEnabled = !!data.ordersEnabled;
+      setContent(data.content);
+      renderAll();
+      return;
+    } catch { /* fall through to the API */ }
+  }
+  const cached = load(CONTENT_CACHE, null);
+  if (cached) { setContent(cached); renderAll(); }
+  const res = await fetchContent();
   ordersEnabled = res.ordersEnabled;
-  if (JSON.stringify(res.content) === JSON.stringify(content)) return; // nothing changed since last visit
+  if (cached && JSON.stringify(res.content) === JSON.stringify(cached)) return;
   setContent(res.content);
   renderAll();
-});
-setInterval(renderOpen, 60000);
+})();
+setInterval(() => { if (content) renderOpen(); }, 60000);
 
 /* ---------- Motion ----------
    Sections and cards float in as they scroll into view, badges spin in like batter spread on the

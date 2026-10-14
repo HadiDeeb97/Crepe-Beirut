@@ -1,6 +1,8 @@
 /* Crepe Beirut admin
    Layout: cocoa sidebar with the monogram; cream work area. Orders use a list + detail split,
    content screens use labelled form sections, and a publish bar rises when there are edits. */
+@font-face { font-family: "Fraunces"; src: url("../assets/fonts/fraunces-soft-750.woff2") format("woff2"); font-weight: 500 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Figtree"; src: url("../assets/fonts/figtree-var.woff2") format("woff2"); font-weight: 300 900; font-style: normal; font-display: swap; }
 :root {
   --cream: #FFFBF1;
   --butter: #FCF0CA;

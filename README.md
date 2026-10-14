@@ -61,6 +61,16 @@ The website animates gently as you scroll: cards and menu rows float in, section
 batter on the plate, a chocolate drizzle draws under headings, and the wooden spreader turns. Visitors
 who turn on "reduce motion" on their device see everything still.
 
+Speed:
+
+- The home page is filled in on the server (theme, texts, menu data), so the first paint already has
+  the right colours and words, and the browser doesn't wait for a second request.
+- Fonts are served from the site itself (`public/assets/fonts`), about 57 KB in total.
+- Each uploaded photo is stored twice: a full copy (shrunk to at most 1000–1600 px, WebP) and a small
+  copy (480 px) used for menu thumbnails, badges and cards.
+- Images below the first screen load only when you scroll near them. Fonts, images and code are cached
+  by the browser; the page itself is always fresh.
+
 How orders work:
 
 - An order is saved when the customer presses **Send order on WhatsApp**. They still have to press
