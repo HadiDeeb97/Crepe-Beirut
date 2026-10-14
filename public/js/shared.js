@@ -47,6 +47,19 @@ export function imageUrl(id) {
 }
 export const isImageId = (v) => /^[a-f0-9]{64}$/.test(v || "");
 
+/** Every uploaded image id the content uses (items, sections, home and About pictures). */
+export function imageIdsIn(content) {
+  const ids = new Set();
+  const add = (v) => { if (isImageId(v)) ids.add(v); };
+  for (const c of content.categories || []) {
+    add(c.image);
+    for (const it of c.items || []) add(it.image);
+  }
+  add(content.media && content.media.hero);
+  add(content.media && content.media.about);
+  return ids;
+}
+
 /** Relative luminance contrast between two #rrggbb colours (1–21). */
 export function contrast(a, b) {
   const lum = (hex) => {

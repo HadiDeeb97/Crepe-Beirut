@@ -1028,7 +1028,7 @@ async function publish() {
     state.draft = clone(data.content);
     state.baseUpdatedAt = data.updatedAt;
     rerender();
-    toast("Published. The website shows your changes now.");
+    toast("Published. The website shows your changes now." + (data.removedImages ? ` ${data.removedImages} old ${data.removedImages === 1 ? "picture" : "pictures"} removed.` : ""));
   } catch (e) {
     if (e.status !== 401) toast(e.message, true);
   } finally {

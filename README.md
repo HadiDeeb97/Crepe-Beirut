@@ -53,7 +53,9 @@ still go to WhatsApp. They just aren't saved, and `/admin` shows what's missing.
 | **Shop settings** | Pause online orders, delivery fee, dollar rate, WhatsApp number, address and Maps link, opening hours ("Open now" on the site comes from these), social links. |
 
 Photos are shrunk in the browser before upload (up to 1600 px wide for the home page picture) and
-stored in the same D1 database, so no extra Cloudflare setup is needed.
+stored in the same D1 database, so no extra Cloudflare setup is needed. When you publish, pictures the website no longer uses
+(a photo you replaced or removed) are deleted. Uploads from the last 30 minutes are kept until a
+later publish, in case they're part of changes still being made.
 
 The website animates gently as you scroll: cards and menu rows float in, section badges spin in like
 batter on the plate, a chocolate drizzle draws under headings, and the wooden spreader turns. Visitors
