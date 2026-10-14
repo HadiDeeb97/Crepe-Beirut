@@ -725,8 +725,9 @@ function renderTheme() {
               <div class="field"><span class="label">Corners</span>${seg("theme.corners", t.corners, [["soft", "Soft"], ["round", "Round"], ["square", "Square"]])}</div>
               <div class="field"><span class="label">Pattern</span>${seg("theme.pattern", t.pattern, [["stripes", "Stripes"], ["grid", "Grid"], ["plain", "Plain"]])}</div>
             </div>
-            <div class="field"><span class="label">Dark mode</span>${seg("theme.mode", t.mode, [["light", "Always light"], ["auto", "Follow the visitor's device"], ["dark", "Always dark"]])}
-              <p class="help">${{ light: "Everyone sees the light colours above.", auto: "Visitors whose phone or computer is set to dark mode see the dark version; everyone else sees light.", dark: "Everyone sees the dark version." }[t.mode]}</p></div>
+            <div class="field"><span class="label">Light or dark: default look</span>${seg("theme.mode", t.mode, [["light", "Light"], ["dark", "Dark"], ["auto", "Match the visitor's device"]])}
+              <p class="help">${{ light: "Visitors see the light version", auto: "Visitors whose phone or computer is set to dark mode see the dark version, others see light", dark: "Visitors see the dark version" }[t.mode]}${t.allowToggle ? ", until they tap the sun/moon button to switch." : "."}</p></div>
+            ${sw("Show a sun/moon button on the website so customers can switch between light and dark", "theme.allowToggle")}
           </div>
           <div class="section">
             <div class="section-title"><h2>Home page picture</h2><p>The big picture at the top of the website. A wide photo of your crepes or shop works best.</p></div>

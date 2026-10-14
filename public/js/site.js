@@ -90,6 +90,20 @@ function useFont(spec) {
   fontLinks.set(spec.css, l);
 }
 
+const MODE_KEY = "crepe-beirut-mode";
+const darkMQ = window.matchMedia("(prefers-color-scheme: dark)");
+const isDark = () => {
+  const m = document.documentElement.dataset.theme;
+  return m ? m === "dark" : darkMQ.matches;
+};
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("[data-mode-btn]")) return;
+  save(MODE_KEY, isDark() ? "light" : "dark");
+  applyTheme();
+});
+darkMQ.addEventListener("change", () => applyTheme());
+
 function applyTheme() {
   const t = { ...DEFAULT_THEME, ...(content.theme || {}) };
   const root = document.documentElement.style;
@@ -105,10 +119,20 @@ function applyTheme() {
   root.setProperty("--body", bf.stack);
   document.documentElement.dataset.corners = t.corners;
   document.documentElement.dataset.pattern = t.pattern;
-  // Dark mode: always light (default), always dark, or follow the visitor's device.
-  if (t.mode === "auto") delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = t.mode;
-  document.documentElement.style.colorScheme = t.mode === "auto" ? "light dark" : t.mode;
+  // Light or dark: the visitor's own pick (if the admin shows the button), else the admin's default
+  // (light, dark, or follow the visitor's device).
+  const own = t.allowToggle ? load(MODE_KEY, null) : null;
+  const mode = own === "light" || own === "dark" ? own : t.mode;
+  if (mode === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = mode;
+  document.documentElement.style.colorScheme = mode === "auto" ? "light dark" : mode;
+  const btn = $("[data-mode-btn]");
+  btn.hidden = !t.allowToggle;
+  const dark = isDark();
+  btn.classList.toggle("is-dark", dark);
+  const label = dark ? "Switch to light mode" : "Switch to dark mode";
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.content = t.background;
 }

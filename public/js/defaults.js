@@ -86,7 +86,8 @@ export const DEFAULT_CONTENT = {
     "bodyFont": "Figtree",
     "corners": "soft",
     "pattern": "stripes",
-    "mode": "light"
+    "mode": "light",
+    "allowToggle": true
   },
   "media": {
     "hero": "",
