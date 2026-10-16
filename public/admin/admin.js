@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610142237";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610162219";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -281,6 +281,7 @@ function renderOrders() {
       <span class="live" data-live><i></i><span data-live-text>Live</span></span>
       <button class="icon-btn ${soundOn ? "on" : ""}" type="button" data-sound aria-pressed="${soundOn}" title="${soundOn ? "Sound on for new orders" : "Sound off"}">${ico("i-bell")}</button>
       <button class="btn btn-line btn-sm" type="button" data-refresh>Refresh</button>
+      <button class="btn btn-ghost btn-sm" type="button" data-open-clear>${ico("i-trash")}Clear orders…</button>
     </div>
     <div class="kpis" data-kpis></div>
     <div class="toolbar">
@@ -293,7 +294,31 @@ function renderOrders() {
     <div class="orders" data-orders>
       <div class="card order-list" data-order-list></div>
       <div class="card detail" data-detail></div>
-    </div>`;
+    </div>
+    <dialog class="modal" data-clear-dialog aria-labelledby="clear-title">
+      <form method="dialog" class="modal-body" data-clear-form>
+        <div class="modal-head">
+          <span class="modal-ico">${ico("i-trash")}</span>
+          <div><h2 id="clear-title">Clear orders</h2><p class="muted">Deleted orders are gone for good, and they drop out of the sales numbers. Order numbers keep counting up, so CB numbers are never reused.</p></div>
+        </div>
+        <fieldset class="clear-opts">
+          <legend class="sr">Which orders</legend>
+          <label class="clear-opt"><input type="radio" name="scope" value="finished" checked><span><b>Completed and cancelled orders</b><small>Keeps orders that are still new or accepted.</small></span><em data-count="finished">…</em></label>
+          <label class="clear-opt"><input type="radio" name="scope" value="older"><span><b>Orders older than 30 days</b><small>Whatever their status.</small></span><em data-count="older">…</em></label>
+          <label class="clear-opt"><input type="radio" name="scope" value="all"><span><b>All orders</b><small>Starts the Orders screen from empty.</small></span><em data-count="all">…</em></label>
+        </fieldset>
+        <div class="field" data-type-delete hidden>
+          <label for="clear-confirm">To delete every order, type <b>DELETE</b></label>
+          <input id="clear-confirm" autocomplete="off" spellcheck="false" placeholder="DELETE">
+        </div>
+        <p class="clear-backup">${ico("i-orders")}<span>Want a copy first? <a data-export-link href="/api/admin/orders/export?scope=finished" download>Download these orders</a> as a spreadsheet (opens in Excel or Google Sheets).</span></p>
+        <p class="form-error" data-clear-error role="alert" hidden></p>
+        <div class="modal-foot">
+          <button class="btn btn-ghost" type="button" data-clear-cancel>Keep my orders</button>
+          <button class="btn btn-danger-solid" type="submit" data-clear-go disabled>Delete orders</button>
+        </div>
+      </form>
+    </dialog>`;
   $("[data-range]").value = state.orders.range;
   paintOrders();
   if (!state.orders.fetchedAt) loadOrders();
@@ -357,7 +382,7 @@ function paintDetail() {
     accepted: `<button class="btn btn-brand" type="button" data-set-status="completed">${ico("i-check")}Mark as completed</button><button class="btn btn-ghost" type="button" data-cancel>Cancel order</button>`,
     completed: `<button class="btn btn-line" type="button" data-set-status="accepted">Reopen</button>`,
     cancelled: `<button class="btn btn-line" type="button" data-set-status="new">Restore order</button>`
-  }[x.status];
+  }[x.status] + `<button class="btn btn-ghost btn-del" type="button" data-delete-order>${ico("i-trash")}Delete</button>`;
 
   box.innerHTML = `
     <div class="detail-head">
@@ -404,6 +429,59 @@ function paintDetail() {
       <div class="detail-actions" data-actions>${actions}</div>
     </div>`;
 }
+
+/* ---------- Clearing orders ---------- */
+
+const clearCounts = {};
+function clearScope() { return ($('[data-clear-form] input[name="scope"]:checked') || {}).value || "finished"; }
+function paintClearDialog() {
+  const scope = clearScope();
+  const n = clearCounts[scope];
+  $("[data-type-delete]").hidden = scope !== "all";
+  const typed = ($("#clear-confirm").value || "").trim().toUpperCase() === "DELETE";
+  const go = $("[data-clear-go]");
+  go.disabled = !n || (scope === "all" && !typed);
+  go.textContent = n == null ? "Delete orders" : n ? `Delete ${n} ${n === 1 ? "order" : "orders"}` : "Nothing to delete";
+  $("[data-export-link]").href = "/api/admin/orders/export?scope=" + scope;
+  $("[data-clear-error]").hidden = true;
+}
+async function openClearDialog() {
+  const dlg = $("[data-clear-dialog]");
+  $("#clear-confirm").value = "";
+  $$("[data-count]", dlg).forEach((el) => (el.textContent = "…"));
+  paintClearDialog();
+  dlg.showModal();
+  await Promise.all(["finished", "older", "all"].map(async (scope) => {
+    try {
+      const { count } = await api("orders/clear", { method: "POST", body: { scope, dryRun: true } });
+      clearCounts[scope] = count;
+      $(`[data-count="${scope}"]`, dlg).textContent = count + (count === 1 ? " order" : " orders");
+    } catch { $(`[data-count="${scope}"]`, dlg).textContent = "?"; }
+  }));
+  paintClearDialog();
+}
+main.addEventListener("change", (e) => { if (e.target.closest("[data-clear-form]")) paintClearDialog(); });
+main.addEventListener("input", (e) => { if (e.target.id === "clear-confirm") paintClearDialog(); });
+main.addEventListener("submit", async (e) => {
+  if (!e.target.matches("[data-clear-form]")) return;
+  e.preventDefault();
+  const scope = clearScope();
+  const go = $("[data-clear-go]");
+  go.disabled = true;
+  go.textContent = "Deleting…";
+  try {
+    const { deleted } = await api("orders/clear", { method: "POST", body: { scope, confirm: $("#clear-confirm").value.trim().toUpperCase() } });
+    $("[data-clear-dialog]").close();
+    state.orders.selected = null;
+    toast(deleted ? `${deleted} ${deleted === 1 ? "order" : "orders"} deleted` : "There was nothing to delete");
+    loadOrders();
+  } catch (err) {
+    const box = $("[data-clear-error]");
+    box.hidden = false;
+    box.textContent = err.message;
+    paintClearDialog();
+  }
+});
 
 async function setStatus(status) {
   const x = state.orders.selected;
@@ -947,6 +1025,28 @@ document.addEventListener("click", async (e) => {
     return;
   }
   if ("keep" in d) { paintDetail(); return; }
+  if ("deleteOrder" in d) {
+    const x = state.orders.selected;
+    const wrap = $("[data-actions]");
+    wrap.innerHTML = `<div class="confirm-box"><p><b>Delete ${orderNumber(x.id)} for good?</b> ${esc(x.name)} · ${money(x.total)}<br>This can't be undone, and the order comes out of the sales numbers.</p>
+      <div class="confirm-btns"><button class="btn btn-danger-solid" type="button" data-delete-yes>Yes, delete it</button><button class="btn btn-ghost" type="button" data-keep>Keep it</button></div></div>`;
+    $("[data-delete-yes]", wrap).focus();
+    return;
+  }
+  if ("deleteYes" in d) {
+    const x = state.orders.selected;
+    try {
+      await api("orders/" + x.id, { method: "DELETE" });
+      state.orders.list = state.orders.list.filter((o) => o.id !== x.id);
+      state.orders.selected = null;
+      toast(orderNumber(x.id) + " deleted");
+      paintOrders();
+      loadOrders({ quiet: true });
+    } catch (e) { if (e.status !== 401) toast(e.message, true); }
+    return;
+  }
+  if ("openClear" in d) { openClearDialog(); return; }
+  if ("clearCancel" in d) { $("[data-clear-dialog]").close(); return; }
 
   if (!draft) return;
   const cat = draft.categories[state.menuCat];

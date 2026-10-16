@@ -14,6 +14,8 @@ import * as adminContent from "../functions/api/admin/content.js";
 import * as adminOrders from "../functions/api/admin/orders/index.js";
 import * as adminOrder from "../functions/api/admin/orders/[id].js";
 import * as adminOrdersVersion from "../functions/api/admin/orders/version.js";
+import * as adminOrdersClear from "../functions/api/admin/orders/clear.js";
+import * as adminOrdersExport from "../functions/api/admin/orders/export.js";
 import * as image from "../functions/api/images/[id].js";
 import * as adminImages from "../functions/api/admin/images.js";
 import { fail, isDailyLimitError } from "../lib/server.js";
@@ -30,6 +32,8 @@ const ROUTES = [
   { path: /^\/api\/admin\/orders$/, mod: adminOrders, admin: true },
   { path: /^\/api\/admin\/images$/, mod: adminImages, admin: true },
   { path: /^\/api\/admin\/orders\/version$/, mod: adminOrdersVersion, admin: true },
+  { path: /^\/api\/admin\/orders\/clear$/, mod: adminOrdersClear, admin: true },
+  { path: /^\/api\/admin\/orders\/export$/, mod: adminOrdersExport, admin: true },
   { path: /^\/api\/admin\/orders\/(?<id>[^/]+)$/, mod: adminOrder, admin: true }
 ];
 

@@ -373,6 +373,31 @@ code { font-size: 13px; background: var(--tint); padding: 1px 6px; border-radius
 .fact-auto { font-size: 13px; }
 @media (max-width: 700px) { .fact-row { grid-template-columns: minmax(0, 1fr) 34px; } .fact-row > :nth-child(2), .fact-row > :nth-child(3) { grid-column: 1; } }
 
+/* ---------- Deleting orders ---------- */
+.btn-danger-solid { background: var(--danger); color: #fff; }
+.btn-danger-solid:hover { filter: brightness(1.08); }
+.btn-del { margin-left: auto; color: var(--danger); }
+.btn-del:hover { background: var(--danger-bg); color: var(--danger); }
+.confirm-box { width: 100%; display: grid; gap: 10px; padding: 12px 14px; border-radius: var(--r); background: var(--danger-bg); font-size: 14px; }
+.confirm-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.modal { width: min(560px, calc(100% - 24px)); padding: 0; border: 0; border-radius: var(--r-lg); background: var(--paper); color: var(--ink); box-shadow: var(--shadow); }
+.modal::backdrop { background: rgba(24, 16, 10, .5); }
+.modal-body { display: grid; gap: 16px; padding: 22px; }
+.modal-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: start; }
+.modal-head h2 { font-size: 22px; margin-bottom: 4px; }
+.modal-head .muted { font-size: 13.5px; }
+.modal-ico { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--danger-bg); color: var(--danger); }
+.clear-opts { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.clear-opt { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px 12px 42px; border-radius: var(--r); border: 1.5px solid var(--line); cursor: pointer; }
+.clear-opt input { position: absolute; left: 14px; top: 50%; translate: 0 -50%; accent-color: var(--danger); }
+.clear-opt:has(input:checked) { border-color: var(--danger); background: color-mix(in srgb, var(--danger-bg) 60%, transparent); }
+.clear-opt span { display: grid; gap: 2px; }
+.clear-opt small { font-size: 12.5px; color: var(--ink-2); }
+.clear-opt em { font-style: normal; font-weight: 750; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-2); white-space: nowrap; }
+.clear-backup { display: flex; gap: 10px; align-items: start; padding: 10px 12px; border-radius: var(--r-sm); background: var(--tint); font-size: 13.5px; }
+.clear-backup a { color: var(--accent); font-weight: 700; }
+.modal-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+
 /* ---------- Photos ---------- */
 .pic-cell { display: grid; justify-items: center; gap: 2px; }
 .photo-btn {

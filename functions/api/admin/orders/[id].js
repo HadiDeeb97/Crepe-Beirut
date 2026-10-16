@@ -1,4 +1,5 @@
-// PATCH /api/admin/orders/:id { status?, staffNote? }
+// PATCH  /api/admin/orders/:id { status?, staffNote? }
+// DELETE /api/admin/orders/:id
 import { bumpOrdersVersion, db, fail, json, readJson, rowToOrder } from "../../../../lib/server.js";
 import { ORDER_STATUSES } from "../../../../public/js/shared.js";
 
@@ -26,4 +27,15 @@ export async function onRequestPatch({ request, env, params }) {
   const row = updated.results[0];
   if (!row) return fail(404, "That order does not exist.");
   return json({ order: rowToOrder(row) });
+}
+
+// DELETE /api/admin/orders/:id: remove one order for good.
+export async function onRequestDelete({ env, params }) {
+  const d = await db(env);
+  if (!d) return fail(503, "The database is not connected.");
+  const id = Number(params.id);
+  if (!Number.isInteger(id) || id < 1) return fail(400, "Unknown order.");
+  const [res] = await d.batch([d.prepare("DELETE FROM orders WHERE id = ? RETURNING id").bind(id), bumpOrdersVersion(d)]);
+  if (!res.results.length) return fail(404, "That order was already deleted.");
+  return json({ deleted: 1 });
 }

@@ -45,7 +45,7 @@ still go to WhatsApp. They just aren't saved, and `/admin` shows what's missing.
 
 | Screen | What you can do |
 | --- | --- |
-| **Orders** | See today's orders, sales and what's waiting. Accept, complete or cancel an order, message or call the customer, open the address in Maps, and add staff notes. New orders appear by themselves (every 20 seconds). Turn on the bell for a chime. |
+| **Orders** | See today's orders, sales and what's waiting. Accept, complete or cancel an order, message or call the customer, open the address in Maps, add staff notes, and delete an order or clear many at once (completed and cancelled, older than 30 days, or all), with a warning and a spreadsheet download first. New orders appear by themselves (every 20 seconds). Turn on the bell for a chime. |
 | **Menu** | Add, rename, reorder or delete sections and items, set prices or sizes, mark items sold out, star house favourites, set choices like Hot / Iced. Add a **photo** to any item, and pick a drawing or upload a photo for each section. |
 | **Extras** | Edit toppings with their prices and stock. Each group chooses the menu sections it's **offered on** (e.g. syrups on shakes, spreads on crepes) and how many a customer **can pick**. |
 | **Website text** | Announcement bar, headline and introduction, About us (text and the row of big facts, such as live item counts or your own like "12 / 25 mini pancakes a box"), contact text. |
