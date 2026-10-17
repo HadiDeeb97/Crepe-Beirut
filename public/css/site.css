@@ -645,11 +645,18 @@ button, input, textarea { font: inherit; color: inherit; }
   :root { --head-h: 60px; }
   .hero { grid-template-columns: minmax(0, 1fr); gap: 18px; padding-top: 16px; }
   .hero-art { order: -1; width: min(330px, 88%); justify-self: center; }
-  .hero-lede { font-size: 1.05rem; }
+  .hero-lede { font-size: 1.05rem; margin-inline: auto; }
+  /* One column: center the headline block under the picture */
+  .hero-copy { justify-items: center; text-align: center; }
+  .hero-cta, .hero-facts { justify-content: center; }
+  .hero-facts { width: 100%; }
   .about-inner { grid-template-columns: minmax(0, 1fr); }
   .about-art { width: min(240px, 70%); order: -1; }
   .visit-card { grid-template-columns: minmax(0, 1fr); }
-  .foot-inner { flex-direction: column; align-items: flex-start; }
+  .foot-inner { flex-direction: column; align-items: center; text-align: center; }
+  .foot-brand { grid-template-columns: auto; justify-items: center; gap: 8px; }
+  .foot-mark { grid-row: auto; }
+  .foot-nav { flex-wrap: wrap; justify-content: center; gap: 12px 22px; }
   .sheet { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: var(--r-lg) var(--r-lg) 0 0; max-height: 92vh; max-height: 92dvh; }
   .sheet-hero { height: 120px; }
   .sheet-hero.photo { height: 190px; }
