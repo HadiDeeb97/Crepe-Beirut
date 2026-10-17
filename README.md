@@ -83,6 +83,8 @@ Speed:
 - The home page is filled in on the server (theme, texts, menu data), so the first paint already has
   the right colours and words, and the browser doesn't wait for a second request.
 - Fonts are served from the site itself (`public/assets/fonts`), about 57 KB in total.
+  Milkshake (headlines) and Sovba (headlines or text) are also hosted there and can be picked in
+  **Theme → Fonts**; they are commercial fonts, so the shop needs a web licence for them.
 - Each uploaded photo is stored twice: a full copy (shrunk to at most 1000–1600 px, WebP) and a small
   copy (480 px) used for menu thumbnails, badges and cards.
 - Images below the first screen load only when you scroll near them. Fonts and images are cached by

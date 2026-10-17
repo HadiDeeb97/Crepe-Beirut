@@ -9,7 +9,7 @@
  * sheet starts when nothing else fits. tools/export-menu-pdf.cjs prints this page to
  * public/menu/menu.pdf; it waits for window.__menuReady.
  */
-import { imageUrl, DISPLAY_FONTS, BODY_FONTS } from "../js/shared.js?v=202610172125";
+import { imageUrl, DISPLAY_FONTS, BODY_FONTS, fontFamily, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610172128";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -34,7 +34,7 @@ async function getContent() {
       if (data.content) return data.content;
     }
   } catch { /* fall back to the built-in menu */ }
-  const m = await import("../js/defaults.js?v=202610172125");
+  const m = await import("../js/defaults.js?v=202610172128");
   return m.DEFAULT_CONTENT;
 }
 
@@ -49,8 +49,14 @@ async function applyTheme(t = {}) {
   root.setProperty("--display", df.stack);
   root.setProperty("--display-weight", String(df.weight || 700));
   root.setProperty("--body", bf.stack);
-  // Fraunces and Figtree come with the site; other choices load from Google Fonts.
-  const custom = [dName !== "Fraunces" && df, bName !== "Figtree" && bf].filter(Boolean);
+  // Fraunces and Figtree come with print.css; fonts hosted on the site get an @font-face; the rest load from Google Fonts.
+  const own = [...new Set([selfHostedCss(df), selfHostedCss(bf)])].join("");
+  if (own) {
+    const st = document.createElement("style");
+    st.textContent = own;
+    document.head.appendChild(st);
+  }
+  const custom = [df, bf].filter(fromGoogle);
   if (custom.length) {
     await new Promise((done) => {
       const l = document.createElement("link");
@@ -62,9 +68,9 @@ async function applyTheme(t = {}) {
     });
   }
   await Promise.all([
-    document.fonts.load(`${df.weight || 700} 28px "${dName}"`),
-    document.fonts.load(`700 15px "${bName}"`),
-    document.fonts.load(`400 15px "${bName}"`)
+    document.fonts.load(`${df.weight || 700} 28px "${fontFamily(df)}"`),
+    document.fonts.load(`700 15px "${fontFamily(bf)}"`),
+    document.fonts.load(`400 15px "${fontFamily(bf)}"`)
   ]).catch(() => {});
   await document.fonts.ready;
 }

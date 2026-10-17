@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
-  DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText
-} from "./shared.js?v=202610172125";
+  DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText, selfHostedCss, fromGoogle
+} from "./shared.js?v=202610172128";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -27,7 +27,7 @@ const itemsWord = (n) => n + " " + T(n === 1 ? "itemOne" : "itemMany");
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610172125").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610172128").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
@@ -115,7 +115,19 @@ function renderOfflineNote(exportedAt) {
 
 const fontLinks = new Map();
 function useFont(spec) {
-  if (!spec || fontLinks.has(spec.css)) return;
+  if (!spec || spec.builtin) return;
+  if (spec.files) {
+    // Fonts hosted on the site: the server already added their @font-face for the published theme.
+    const css = selfHostedCss(spec);
+    if (fontLinks.has(css) || [...document.querySelectorAll("style[data-fonts]")].some((x) => x.textContent.includes(css))) return;
+    const st = document.createElement("style");
+    st.dataset.fonts = "";
+    st.textContent = css;
+    document.head.appendChild(st);
+    fontLinks.set(css, st);
+    return;
+  }
+  if (!fromGoogle(spec) || fontLinks.has(spec.css)) return;
   // The server already added the link for the published fonts.
   if ([...document.querySelectorAll('link[rel="stylesheet"]')].some((l) => l.href.includes(spec.css))) { fontLinks.set(spec.css, null); return; }
   const l = document.createElement("link");
@@ -148,8 +160,8 @@ function applyTheme() {
   root.setProperty("--cream", t.background);
   const df = DISPLAY_FONTS[t.displayFont] || DISPLAY_FONTS.Fraunces;
   const bf = BODY_FONTS[t.bodyFont] || BODY_FONTS.Figtree;
-  if (t.displayFont !== "Fraunces") useFont(df);
-  if (t.bodyFont !== "Figtree") useFont(bf);
+  useFont(df);
+  useFont(bf);
   root.setProperty("--display", df.stack);
   root.setProperty("--display-weight", String(df.weight || 700));
   root.setProperty("--body", bf.stack);

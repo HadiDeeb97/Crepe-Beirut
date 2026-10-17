@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS } from "../js/shared.js?v=202610172125";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610172128";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -82,7 +82,17 @@ async function uploadImage(kind) {
 
 const fontLinks = new Set();
 function useFont(spec) {
-  if (!spec || fontLinks.has(spec.css)) return;
+  if (!spec || spec.builtin) return;
+  if (spec.files) {
+    const css = selfHostedCss(spec);
+    if (fontLinks.has(css)) return;
+    const st = document.createElement("style");
+    st.textContent = css;
+    document.head.appendChild(st);
+    fontLinks.add(css);
+    return;
+  }
+  if (!fromGoogle(spec) || fontLinks.has(spec.css)) return;
   const l = document.createElement("link");
   l.rel = "stylesheet";
   l.href = "https://fonts.googleapis.com/css2?family=" + spec.css + "&display=swap";
@@ -923,8 +933,8 @@ function themeOf() {
 function previewVars(t) {
   const df = DISPLAY_FONTS[t.displayFont] || DISPLAY_FONTS.Fraunces;
   const bf = BODY_FONTS[t.bodyFont] || BODY_FONTS.Figtree;
-  if (t.displayFont !== "Fraunces") useFont(df);
-  if (t.bodyFont !== "Figtree") useFont(bf);
+  useFont(df);
+  useFont(bf);
   const r = { soft: "14px", round: "22px", square: "5px" }[t.corners];
   return `--p-brand:${t.brand};--p-accent:${t.accent};--p-soft:${t.soft};--p-bg:${t.background};--p-display:${df.stack};--p-dw:${df.weight || 700};--p-body:${bf.stack};--p-r:${r};--p-pill:${t.corners === "square" ? "6px" : "999px"}`;
 }
