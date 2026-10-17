@@ -630,3 +630,8 @@ input[type="range"][data-hero-zoom] { width: 100%; accent-color: var(--brand); }
 .text-group[open] summary .ico { transform: rotate(90deg); }
 .text-group .section { padding: 0 18px 18px; border-top: 1px solid var(--line); padding-top: 16px; }
 .text-note { font-size: 12.5px; padding: 0 4px; }
+
+/* Unfinished orders */
+.list-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13px; }
+.draft-note { display: flex; gap: 10px; align-items: start; padding: 10px 12px; border-radius: var(--r-sm); background: var(--tint); font-size: 13.5px; }
+.draft-note .ico { flex: none; margin-top: 2px; }

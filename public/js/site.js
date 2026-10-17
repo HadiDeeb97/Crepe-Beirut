@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText, selfHostedCss, fromGoogle
-} from "./shared.js?v=202610172128";
+} from "./shared.js?v=202610172150";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -27,7 +27,7 @@ const itemsWord = (n) => n + " " + T(n === 1 ? "itemOne" : "itemMany");
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610172128").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610172150").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
@@ -512,6 +512,7 @@ function commit() {
   save(CART_KEY, cart);
   renderCart();
   renderBadges();
+  queueDraft();
 }
 
 const form = $("[data-checkout]");
@@ -610,7 +611,57 @@ function syncType() {
   renderCart();
 }
 form.addEventListener("change", (e) => { if (e.target.name === "type") syncType(); });
-form.addEventListener("input", (e) => { const f = e.target.closest(".field"); if (f) f.classList.remove("bad"); });
+form.addEventListener("input", (e) => { const f = e.target.closest(".field"); if (f) f.classList.remove("bad"); queueDraft(); });
+form.addEventListener("change", () => queueDraft());
+window.addEventListener("pagehide", () => queueDraft(true));
+document.addEventListener("visibilitychange", () => { if (document.hidden) queueDraft(true); });
+
+/* ---------- Unfinished orders ----------
+   Once the bag has items and the customer typed a name and a phone number, the order is saved as
+   "unfinished" a moment after they stop typing, so the shop can follow up if they never press
+   "Send order on WhatsApp". Sending the order replaces it. */
+const DRAFT_KEY = "crepe-beirut-draft-id";
+let draftTimer = 0;
+let draftSent = "";   // the last version saved on the server ("" = nothing saved)
+
+function draftId() {
+  let id = load(DRAFT_KEY, null);
+  if (!/^[a-z0-9]{16,40}$/.test(id || "")) {
+    id = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, "0")).join("");
+    save(DRAFT_KEY, id);
+  }
+  return id;
+}
+
+function queueDraft(now = false) {
+  clearTimeout(draftTimer);
+  if (!ordersEnabled) return;
+  draftTimer = setTimeout(sendDraft, now ? 0 : 1500);
+}
+
+function sendDraft() {
+  let body;
+  try {
+    body = {
+      token: draftId(), type: orderType(),
+      name: form.elements.name.value.trim(), phone: form.elements.phone.value.trim(),
+      address: form.elements.address.value.trim(), notes: form.elements.notes.value.trim(),
+      lines: cart.map(({ itemId, option, choice, extras, note, qty }) => ({ itemId, option, choice, extras, note, qty }))
+    };
+  } catch { return; }
+  const ready = body.name && body.phone.replace(/\D/g, "").length >= 7 && body.lines.length;
+  if (!ready && !draftSent) return;           // nothing saved and nothing to save
+  const key = ready ? JSON.stringify(body) : "";
+  if (key === draftSent) return;
+  draftSent = key;                            // not ready any more: the server forgets it
+  fetch("/api/drafts", { method: "POST", keepalive: true, headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).catch(() => {});
+}
+
+function draftDone() {
+  clearTimeout(draftTimer);
+  draftSent = "";
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* storage unavailable */ }
+}
 
 function buildMessage(c, number, priced, t) {
   const s = content.settings;
@@ -635,7 +686,7 @@ async function postOrder(c) {
   try {
     const r = await fetch("/api/orders", {
       method: "POST", signal: ctrl.signal, headers: { "content-type": "application/json" },
-      body: JSON.stringify({ ...c, lines: cart.map(({ itemId, option, choice, extras, note, qty }) => ({ itemId, option, choice, extras, note, qty })) })
+      body: JSON.stringify({ ...c, draft: draftId(), lines: cart.map(({ itemId, option, choice, extras, note, qty }) => ({ itemId, option, choice, extras, note, qty })) })
     });
     const data = await r.json().catch(() => ({}));
     if (r.ok) return { ok: true, data };
@@ -690,8 +741,10 @@ form.addEventListener("submit", async (e) => {
   let t = totals();
   let lines = priced;
   if (ordersEnabled) {
+    clearTimeout(draftTimer);
     const res = await postOrder(c);
     if (res.ok) {
+      draftDone();
       number = res.data.number;
       lines = res.data.lines.map((l) => ({ ok: true, ...l }));
       t = { sub: res.data.subtotal, fee: res.data.fee, total: res.data.total, count: t.count };

@@ -134,6 +134,7 @@ export const UI_TEXT_GROUPS = [
     ["sendButton", "Send button", "Send order on WhatsApp"],
     ["sendPreparing", "Send button while sending", "Preparing your order…"],
     ["sendHint", "Line under the send button", "WhatsApp opens with your order written out. Press send there, and we reply to confirm."],
+    ["draftNotice", "Note that details are saved while typing", "We keep your details with your order as you fill it in, so we can help if it doesn't reach us."],
     ["errMissing", "Missing details", "Please add {list}."],
     ["errName", "Missing name", "your name"],
     ["errPhone", "Missing phone", "a phone number we can call"],

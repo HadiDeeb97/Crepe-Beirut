@@ -6,6 +6,8 @@
  */
 import * as content from "../functions/api/content.js";
 import * as orders from "../functions/api/orders.js";
+import * as drafts from "../functions/api/drafts.js";
+import * as adminDrafts from "../functions/api/admin/drafts.js";
 import * as adminGuard from "../functions/api/admin/_middleware.js";
 import * as me from "../functions/api/admin/me.js";
 import * as login from "../functions/api/admin/login.js";
@@ -26,6 +28,7 @@ import { renderHome } from "../lib/page.js";
 const ROUTES = [
   { path: /^\/api\/content$/, mod: content },
   { path: /^\/api\/orders$/, mod: orders },
+  { path: /^\/api\/drafts$/, mod: drafts },
   { path: /^\/api\/images\/(?<id>[^/]+)$/, mod: image },
   { path: /^\/api\/admin\/me$/, mod: me, admin: true },
   { path: /^\/api\/admin\/login$/, mod: login, admin: true },
@@ -34,6 +37,7 @@ const ROUTES = [
   { path: /^\/api\/admin\/orders$/, mod: adminOrders, admin: true },
   { path: /^\/api\/admin\/images$/, mod: adminImages, admin: true },
   { path: /^\/api\/admin\/menu-pdf$/, mod: adminMenuPdf, admin: true },
+  { path: /^\/api\/admin\/drafts$/, mod: adminDrafts, admin: true },
   { path: /^\/api\/admin\/orders\/version$/, mod: adminOrdersVersion, admin: true },
   { path: /^\/api\/admin\/orders\/clear$/, mod: adminOrdersClear, admin: true },
   { path: /^\/api\/admin\/orders\/export$/, mod: adminOrdersExport, admin: true },

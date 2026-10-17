@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610172128";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610172150";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -130,7 +130,7 @@ const state = {
   baseUpdatedAt: null,
   route: "orders",
   menuCat: 0,
-  orders: { status: "all", range: "today", q: "", list: [], byStatus: null, summary: null, newestId: null, selected: null, fetchedAt: 0, error: "" }
+  orders: { status: "all", range: "today", q: "", list: [], byStatus: null, summary: null, newestId: null, selected: null, fetchedAt: 0, error: "", drafts: [], draftsAt: 0, draft: null }
 };
 const main = $("[data-main]");
 const tz = () => (state.draft ? state.draft.settings.timezone : "Asia/Beirut") || "Asia/Beirut";
@@ -223,7 +223,7 @@ const freshIds = new Set();
 async function loadOrders({ quiet = false } = {}) {
   const o = state.orders;
   const params = new URLSearchParams();
-  if (o.status !== "all") params.set("status", o.status);
+  if (o.status !== "all" && o.status !== "unfinished") params.set("status", o.status);
   const since = sinceFor(o.range);
   if (since) params.set("since", since);
   if (o.q) params.set("q", o.q);
@@ -267,11 +267,13 @@ function updateWaitingBadge() {
 // Every 20 s ask "has any order changed?" (one tiny read). Reload the full list only when the answer
 // is yes, and at least every 5 minutes so "today" and the time-ago labels stay right.
 let ordersVersion = null;
+let draftsVersion = null;
 let lastFullLoad = 0;
 async function checkForChanges() {
   if (document.hidden) return;
   try {
-    const { version } = await api("orders/version");
+    const { version, drafts } = await api("orders/version");
+    if (drafts !== draftsVersion) { draftsVersion = drafts; loadDrafts(); }
     if (version !== ordersVersion || Date.now() - lastFullLoad > 5 * 60000) {
       ordersVersion = version;
       await loadOrders({ quiet: true });
@@ -332,6 +334,7 @@ function renderOrders() {
   $("[data-range]").value = state.orders.range;
   paintOrders();
   if (!state.orders.fetchedAt) loadOrders();
+  if (!state.orders.draftsAt) loadDrafts();
 }
 
 function paintOrders() {
@@ -348,7 +351,7 @@ function paintOrders() {
 
   const bs = o.byStatus || {};
   const total = Object.values(bs).reduce((n, x) => n + x.count, 0);
-  $("[data-status-tabs]").innerHTML = [["all", "All", total], ["new", "New"], ["accepted", "Accepted"], ["completed", "Completed"], ["cancelled", "Cancelled"]]
+  $("[data-status-tabs]").innerHTML = [["all", "All", total], ["new", "New"], ["accepted", "Accepted"], ["completed", "Completed"], ["cancelled", "Cancelled"], ["unfinished", "Unfinished", o.drafts.length]]
     .map(([k, label, n]) => `<button type="button" role="tab" aria-selected="${o.status === k}" class="${o.status === k ? "on" : ""}" data-status-tab="${k}">${label}<span class="n">${n != null ? n : bs[k] ? bs[k].count : 0}</span></button>`).join("");
 
   const live = $("[data-live]");
@@ -356,6 +359,10 @@ function paintOrders() {
   $("[data-live-text]").textContent = o.error ? "Not updating" : "Live · checks every 20 s";
 
   const list = $("[data-order-list]");
+  const unfinished = o.status === "unfinished";
+  $("[data-range]").hidden = unfinished;
+  $("[data-order-q]").closest(".search").hidden = unfinished;
+  if (unfinished) { paintDrafts(list); return; }
   if (!o.fetchedAt && !o.error) list.innerHTML = `<div class="list-empty">Loading orders…</div>`;
   else if (!o.list.length) {
     list.innerHTML = `<div class="list-empty">${ico("i-orders")}<b>No orders here</b><span>${o.q ? "Nothing matches your search." : o.range === "today" ? "Orders placed on the website today will appear here." : "Try a longer time range."}</span></div>`;
@@ -372,9 +379,94 @@ function paintOrders() {
   paintDetail();
 }
 
+/* ---------- Unfinished orders ----------
+   Customers who put items in the bag and typed their name and phone, but never pressed
+   "Send order on WhatsApp". The site saves them as they type (see /api/drafts). */
+
+async function loadDrafts() {
+  try {
+    const { drafts } = await api("drafts");
+    state.orders.drafts = drafts;
+    state.orders.draftsAt = Date.now();
+    if (state.orders.draft) state.orders.draft = drafts.find((x) => x.token === state.orders.draft.token) || null;
+  } catch (e) {
+    if (e.status === 401) return;
+  }
+  if (state.route === "orders") paintOrders();
+}
+
+// Still filling in the form a moment ago: the order may yet arrive.
+const draftLive = (x) => Date.now() - Date.parse(x.updatedAt) < 3 * 60000;
+
+function paintDrafts(list) {
+  const o = state.orders;
+  if (!o.draftsAt) list.innerHTML = `<div class="list-empty">Loading…</div>`;
+  else if (!o.drafts.length) list.innerHTML = `<div class="list-empty">${ico("i-orders")}<b>No unfinished orders</b><span>When a customer fills in their name and phone but doesn't press “Send order on WhatsApp”, it shows here so you can follow up.</span></div>`;
+  else {
+    list.innerHTML = "<ul>" + o.drafts.map((x) => `<li><button type="button" class="orow ${o.draft && o.draft.token === x.token ? "on" : ""}" data-draft="${esc(x.token)}">
+        <span class="orow-top"><span class="orow-name">${esc(x.name)}</span></span>
+        <span class="orow-total">${money(x.subtotal)}</span>
+        <span class="orow-meta"><span class="num">${esc(x.phone)}</span><span>·</span><span>${ago(x.updatedAt)}</span><span>·</span><span>${x.itemCount} ${x.itemCount === 1 ? "item" : "items"}</span></span>
+        <span class="orow-side"><span class="pill" data-status="${draftLive(x) ? "accepted" : "new"}">${draftLive(x) ? "On the site now" : "Not sent"}</span></span>
+      </button></li>`).join("") + "</ul>" +
+      `<div class="list-foot"><span class="muted">Kept for 14 days.</span><button class="btn btn-ghost btn-sm" type="button" data-drafts-clear>Remove all</button></div>`;
+  }
+  paintDetail();
+}
+
+function paintDraftDetail(box, x) {
+  const digits = waDigits(x.phone);
+  const first = x.name.split(/\s+/)[0];
+  const items = x.lines.map((l) => `${l.qty}× ${l.name}${l.option ? " (" + l.option + ")" : ""}`).join(", ");
+  const waText = `Hi ${first}, this is Crepe Beirut. We saw you started an order on our website (${items}, ${money(x.subtotal)}) but it didn't reach us. Would you like us to prepare it for you?`;
+  box.innerHTML = `
+    <div class="detail-head">
+      <button class="icon-btn detail-back" type="button" data-close-detail aria-label="Back to the list">${ico("i-x")}</button>
+      <div class="grow">
+        <h2>Unfinished order</h2>
+        <p class="muted">Started ${fmtDay(x.createdAt)} at ${fmtTime(x.createdAt)} · last change ${ago(x.updatedAt)}</p>
+      </div>
+      <span class="pill" data-status="${draftLive(x) ? "accepted" : "new"}">${draftLive(x) ? "On the site now" : "Not sent"}</span>
+    </div>
+    <div class="detail-body">
+      <p class="draft-note">${ico("i-bell")}<span>${draftLive(x)
+        ? "This customer is filling in the order right now, so it may still arrive. Give it a few minutes before you message them."
+        : "This customer gave their details but never pressed “Send order on WhatsApp”. A friendly message often brings the order back."}</span></p>
+      <div class="dsec">
+        <h3>Customer</h3>
+        <div class="cust">
+          <b>${esc(x.name)}</b>
+          <span class="num">${esc(x.phone)}</span>
+          <span class="type-tag muted">${ico(x.type === "Pickup" ? "i-bag" : "i-scooter")}${x.type}${x.address ? " · " + esc(x.address) : ""}</span>
+        </div>
+        <div class="cust-actions">
+          <a class="btn btn-wa btn-sm" href="https://wa.me/${digits}?text=${encodeURIComponent(waText)}" target="_blank" rel="noopener">${ico("i-wa")}WhatsApp</a>
+          <a class="btn btn-line btn-sm" href="tel:+${digits}">${ico("i-phone")}Call</a>
+        </div>
+      </div>
+      <div class="dsec">
+        <h3>${x.itemCount} ${x.itemCount === 1 ? "item" : "items"} in the bag</h3>
+        <ul class="ditems">${x.lines.map((l) => {
+          const sub = [l.option, l.choice, l.extras && l.extras.length ? "+ " + l.extras.map((e) => e.name).join(", ") : "", l.note ? "“" + l.note + "”" : ""].filter(Boolean).join(" · ");
+          return `<li><span class="q">${l.qty}×</span><span class="nm">${esc(l.name)}</span><span class="pr">${money(l.total)}</span>${sub ? `<span class="sub">${esc(sub)}</span>` : ""}</li>`;
+        }).join("")}</ul>
+        <div class="dtotals"><div class="big"><span>Items total</span><span>${money(x.subtotal)}</span></div></div>
+      </div>
+      ${x.notes ? `<div class="dsec"><h3>Customer note</h3><p class="note-box">${esc(x.notes)}</p></div>` : ""}
+      <div class="detail-actions"><button class="btn btn-ghost btn-del" type="button" data-draft-delete="${esc(x.token)}">${ico("i-trash")}Remove</button></div>
+    </div>`;
+}
+
 function paintDetail() {
   const box = $("[data-detail]");
   if (!box) return;
+  if (state.orders.status === "unfinished") {
+    const dr = state.orders.draft;
+    $("[data-orders]").classList.toggle("show-detail", !!dr);
+    if (dr) return paintDraftDetail(box, dr);
+    box.innerHTML = `<div class="detail-empty">${ico("i-orders")}<b>Pick an unfinished order</b><span>See what was in the bag and message the customer.</span></div>`;
+    return;
+  }
   const x = state.orders.selected;
   $("[data-orders]").classList.toggle("show-detail", !!x);
   if (!x) {
@@ -1214,8 +1306,36 @@ document.addEventListener("click", async (e) => {
 
   // Orders
   if (d.order) { state.orders.selected = state.orders.list.find((o) => o.id === Number(d.order)) || null; paintOrders(); return; }
-  if ("closeDetail" in d) { state.orders.selected = null; paintOrders(); return; }
-  if (d.statusTab) { state.orders.status = d.statusTab; paintOrders(); loadOrders(); return; }
+  if ("closeDetail" in d) { state.orders.selected = null; state.orders.draft = null; paintOrders(); return; }
+  if (d.statusTab) {
+    state.orders.status = d.statusTab;
+    state.orders.selected = state.orders.draft = null;
+    paintOrders();
+    if (d.statusTab === "unfinished") loadDrafts(); else loadOrders();
+    return;
+  }
+  if (d.draft) { state.orders.draft = state.orders.drafts.find((x) => x.token === d.draft) || null; paintOrders(); return; }
+  if (d.draftDelete) {
+    try {
+      await api("drafts?token=" + encodeURIComponent(d.draftDelete), { method: "DELETE" });
+      state.orders.drafts = state.orders.drafts.filter((x) => x.token !== d.draftDelete);
+      state.orders.draft = null;
+      toast("Unfinished order removed");
+      paintOrders();
+    } catch (err) { toast(err.message, true); }
+    return;
+  }
+  if ("draftsClear" in d) {
+    if (t.dataset.armed !== "1") { t.dataset.armed = "1"; t.textContent = "Tap again to remove all"; setTimeout(() => { if (t.isConnected) { t.dataset.armed = ""; t.textContent = "Remove all"; } }, 4000); return; }
+    try {
+      await api("drafts?all=1", { method: "DELETE" });
+      state.orders.drafts = [];
+      state.orders.draft = null;
+      toast("Unfinished orders removed");
+      paintOrders();
+    } catch (err) { toast(err.message, true); }
+    return;
+  }
   if ("refresh" in d) { loadOrders(); return; }
   if ("sound" in d) {
     soundOn = !soundOn; store.set("cb-admin-sound", soundOn);
