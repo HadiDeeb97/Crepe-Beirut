@@ -8,6 +8,7 @@
  * Runs on GitHub Actions (.github/workflows/menu-pdf.yml), which commits the files so Cloudflare
  * serves them as plain static files. Locally:
  *   SITE_URL=http://localhost:8788 node tools/export-menu-pdf.cjs
+ * To re-print the last exported menu after a design change, add CONTENT_FILE=public/menu/menu.json.
  * Skips the export if neither the menu nor the print design changed since the last one, unless FORCE=1.
  */
 const fs = require("fs");
@@ -21,8 +22,15 @@ const OUT = path.join(ROOT, "public", "menu");
 const FORCE = /^(1|true|yes)$/i.test(process.env.FORCE || "");
 
 async function main() {
-  const r = await fetch(SITE + "/api/content", { headers: { accept: "application/json" } });
-  const data = r.ok ? await r.json().catch(() => null) : null;
+  let r = { status: "file" }, data = null;
+  if (process.env.CONTENT_FILE) {
+    // Re-print a saved menu (e.g. public/menu/menu.json after a design change) without the live site.
+    const saved = JSON.parse(fs.readFileSync(process.env.CONTENT_FILE, "utf8"));
+    data = { content: saved.content, updatedAt: saved.menuUpdatedAt || saved.updatedAt || null };
+  } else {
+    r = await fetch(SITE + "/api/content", { headers: { accept: "application/json" } });
+    data = r.ok ? await r.json().catch(() => null) : null;
+  }
   if (!data || !data.content) {
     // Never replace a good export with nothing: keep the last one until the menu loads again.
     throw new Error(`Could not load the live menu from ${SITE}/api/content (HTTP ${r.status}). The last export is kept.`);

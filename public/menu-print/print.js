@@ -4,12 +4,13 @@
  * Instagram / WhatsApp footer on every sheet. It uses the two fonts and the colours chosen in the
  * admin's Theme screen, and a fixed type scale (print.css).
  *
- * Sections are measured off-screen, then packed into three columns: each goes where it sits
- * highest (looking a few sections ahead to fill gaps), size tables take two columns, and a new
- * sheet starts when nothing else fits. tools/export-menu-pdf.cjs prints this page to
+ * Sections are measured off-screen, then laid out in rows of three columns so their titles line
+ * up: each row groups sections of similar length (size tables take two columns, short sections
+ * can share a column), spare space is spread between rows, and a new sheet starts when the next
+ * row doesn't fit. tools/export-menu-pdf.cjs prints this page to
  * public/menu/menu.pdf; it waits for window.__menuReady.
  */
-import { imageUrl, DISPLAY_FONTS, BODY_FONTS, fontFamily, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610172150";
+import { imageUrl, DISPLAY_FONTS, BODY_FONTS, fontFamily, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610172154";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -17,12 +18,11 @@ const num = (n) => Math.round(Number(n) || 0).toLocaleString("en-US");
 
 const COLS = 3;
 const GUTTER = 40;        // space between columns
-const GAP = 30;           // space between sections in a column
+const GAP = 26;           // space between sections in a column
 const SIDE = 56;          // sheet margin left and right (print.css .sheet-body)
 const FIRST_TOP = 352;    // content starts below the masthead on the first sheet
-const NEXT_TOP = 140;     // ...and below the small badge on later sheets
+const NEXT_TOP = 130;     // ...and below the small badge on later sheets
 const BOTTOM = 112;       // room kept for the footer
-const LOOKAHEAD = 3;      // how many sections ahead may jump in to fill a gap
 
 async function getContent() {
   // The exporter hands over the content it fetched, so the PDF matches its record exactly.
@@ -34,7 +34,7 @@ async function getContent() {
       if (data.content) return data.content;
     }
   } catch { /* fall back to the built-in menu */ }
-  const m = await import("../js/defaults.js?v=202610172150");
+  const m = await import("../js/defaults.js?v=202610172154");
   return m.DEFAULT_CONTENT;
 }
 
@@ -260,71 +260,110 @@ function layout(boxes, W, sheetH) {
   }
   measure.innerHTML = "";
 
-  const spot = (box, tops, limitY) => {
+  // Rows: every section in a row starts on the same line, so titles, rules and first items line
+  // up across the page. A row takes the next section in menu order plus the sections close behind
+  // it whose length is nearest to it (least empty space), and a short section can sit under
+  // another one in the same column when it fits in the row's height.
+  const buildRow = (pending, window) => {
+    const first = pending[0];
+    if (first.span >= COLS) return { members: [{ box: first, col: 0, dy: 0 }], used: new Set([0]), h: first.h };
+    const cand = pending.slice(1, 1 + window).map((box, k) => ({ box, i: k + 1 })).filter((c) => c.box.span < COLS);
+    const combos = [[]];
+    for (let a = 0; a < cand.length; a++) {
+      combos.push([cand[a]]);
+      for (let b = a + 1; b < cand.length; b++) combos.push([cand[a], cand[b]]);
+    }
     let best = null;
-    for (let c = 0; c + box.span <= COLS; c++) {
-      const y = Math.max(...tops.slice(c, c + box.span));
-      if (!best || y < best.y) best = { col: c, y };
+    for (const combo of combos) {
+      const span = first.span + combo.reduce((n, c) => n + c.box.span, 0);
+      if (span > COLS) continue;
+      const all = [{ box: first, i: 0 }, ...combo];
+      const h = Math.max(...all.map((c) => c.box.h));
+      const waste = all.reduce((n, c) => n + (h - c.box.h) * c.box.span, 0) + (COLS - span) * h;
+      const cost = waste + combo.reduce((n, c) => n + c.i, 0) * 12;      // keep close to menu order
+      if (!best || cost < best.cost) best = { all, h, cost };
     }
-    best.fits = best.y + box.h <= limitY;
-    return best;
+    // Left to right in menu order.
+    const members = [];
+    const used = new Set();
+    let col = 0;
+    for (const c of best.all.sort((p, q) => p.i - q.i)) {
+      members.push({ box: c.box, col, dy: 0 });
+      used.add(c.i);
+      col += c.box.span;
+    }
+    // Fill the space under shorter sections, column by column, with short sections from close
+    // behind; ones that start side by side start on the same line.
+    const bottoms = Array(COLS).fill(best.h);
+    for (const m of members) for (let c = m.col; c < m.col + m.box.span; c++) bottoms[c] = m.box.h;
+    for (let c = 0; c < COLS; c++) {
+      for (;;) {
+        let pick = null;
+        pending.slice(1, 1 + window + 4).forEach((box, k) => {
+          const i = k + 1;
+          if (used.has(i) || box.span !== 1 || bottoms[c] + GAP + box.h > best.h) return;
+          if (!pick || box.h > pick.box.h) pick = { box, i };
+        });
+        if (!pick) break;
+        members.push({ box: pick.box, col: c, dy: bottoms[c] + GAP });
+        used.add(pick.i);
+        bottoms[c] += GAP + pick.box.h;
+      }
+    }
+    return { members, used, h: best.h };
   };
-  // Fill one sheet from the queue: each section goes where it sits highest, and a section a few
-  // places further on may jump ahead if it fits higher up. Returns what didn't fit.
-  const packSheet = (items, top, limitY) => {
-    const tops = Array(COLS).fill(top);
-    const placed = [];
-    const left = items.slice();
+
+  // Lay rows down a sheet until the next one doesn't fit; returns the sheet and what's left.
+  const fillSheet = (items, top, limitY, window) => {
+    const rows = [];
+    let y = top;
+    let left = items.slice();
     while (left.length) {
-      let pick = -1, pos = null;
-      for (let i = 0; i < Math.min(LOOKAHEAD, left.length); i++) {
-        const p = spot(left[i], tops, limitY);
-        if (p.fits && (!pos || p.y < pos.y - 30)) { pick = i; pos = p; }
-      }
-      if (pick < 0) {
-        for (let i = LOOKAHEAD; i < left.length; i++) {
-          const p = spot(left[i], tops, limitY);
-          if (p.fits) { pick = i; pos = p; break; }
-        }
-      }
-      if (pick < 0) {
-        if (placed.length) break;
-        pick = 0; pos = spot(left[0], tops, limitY);   // too tall for any sheet: place it anyway
-      }
-      const box = left.splice(pick, 1)[0];
-      placed.push({ ...box, col: pos.col, y: pos.y });
-      for (let c = pos.col; c < pos.col + box.span; c++) tops[c] = pos.y + box.h + GAP;
+      const row = buildRow(left, window);
+      if (y + row.h > limitY && rows.length) break;
+      rows.push({ ...row, y });
+      y += row.h + GAP;
+      left = left.filter((_, i) => !row.used.has(i));
     }
-    return { placed, left, tops };
+    return { rows, left, bottom: y - GAP };
   };
 
   const sheets = [];
   let pending = queue;
   while (pending.length) {
     const first = !sheets.length;
-    const r = packSheet(pending, first ? FIRST_TOP : NEXT_TOP, maxY);
-    sheets.push({ first, placed: r.placed });
+    const r = fillSheet(pending, first ? FIRST_TOP : NEXT_TOP, maxY, 4);
+    sheets.push({ first, rows: r.rows, bottom: r.bottom, items: pending.filter((b) => !r.left.includes(b)) });
     pending = r.left;
   }
 
   // A last sheet holding only full-width sections (like the add-ons): try to make room for them at
-  // the foot of the sheet before by packing that sheet's sections into a shorter space.
+  // the foot of the sheet before, looking further ahead for sections that pack tighter.
   const last = sheets[sheets.length - 1];
-  if (sheets.length > 1 && last.placed.every((b) => b.span === COLS)) {
+  if (sheets.length > 1 && last.rows.every((r) => r.members.every((m) => m.box.span >= COLS))) {
     const prev = sheets[sheets.length - 2];
-    const wide = last.placed.map(({ col, y, ...b }) => b);
+    const wide = last.rows.map((r) => r.members[0].box);
     const need = wide.reduce((n, b) => n + b.h + GAP, 0);
-    const items = prev.placed.map(({ col, y, ...b }) => b);
-    const top = prev.first ? FIRST_TOP : NEXT_TOP;
-    // First in menu order; if that leaves no room, tallest first (which balances the columns best).
-    let r = packSheet(items, top, maxY - need);
-    if (r.left.length) r = packSheet(items.slice().sort((p, q) => q.span - p.span || q.h - p.h), top, maxY - need);
-    if (!r.left.length) {
-      let y = Math.max(...r.tops);
-      for (const b of wide) { r.placed.push({ ...b, col: 0, y }); y += b.h + GAP; }
-      prev.placed = r.placed;
+    for (const window of [4, 6, 8]) {
+      const r = fillSheet(prev.items, prev.first ? FIRST_TOP : NEXT_TOP, maxY - need, window);
+      if (r.left.length) continue;
+      let y = r.bottom + GAP;
+      for (const b of wide) { r.rows.push({ members: [{ box: b, col: 0, dy: 0 }], h: b.h, y }); y += b.h + GAP; }
+      prev.rows = r.rows;
+      prev.bottom = y - GAP;
       sheets.pop();
+      break;
     }
+  }
+
+  // Spread spare space evenly between the rows so a sheet doesn't end in a gap.
+  for (const [n, sh] of sheets.entries()) {
+    const spare = maxY - sh.bottom;
+    const extra = sh.rows.length > 1 ? Math.min(spare / (sh.rows.length - 1), n < sheets.length - 1 ? 48 : 20) : 0;
+    sh.placed = [];
+    sh.rows.forEach((r, k) => {
+      for (const m of r.members) sh.placed.push({ ...m.box, col: m.col, y: r.y + k * extra + m.dy });
+    });
   }
   return { sheets, x, width };
 }
