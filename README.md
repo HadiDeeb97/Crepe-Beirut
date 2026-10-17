@@ -61,6 +61,10 @@ The website animates gently as you scroll: cards and menu rows float in, section
 batter on the plate, a chocolate drizzle draws under headings, and the wooden spreader turns. Visitors
 who turn on "reduce motion" on their device see everything still.
 
+Type: the whole site uses two fonts (the headline and text fonts picked in **Theme**), two text
+weights (regular and bold), and one size scale (`--fs-2xs` to `--fs-hero` in `site.css`). Headline
+fonts that only come in one weight are never faked bold.
+
 Speed:
 
 - The home page is filled in on the server (theme, texts, menu data), so the first paint already has
@@ -76,8 +80,9 @@ Speed:
 Menu PDF:
 
 - **Menu → Menu PDF** shows the last exported PDF (with page previews), opens the printable page
-  (`/menu-print/`, A3 sheets in the style of the printed card, which you can also save as a PDF from
-  the browser), and has an **Export a new PDF** button.
+  (`/menu-print/`: A3 sheets with the striped awning and CB badge, sections with dotted price
+  leaders and an add-ons band, in the theme's colours and two fonts; you can also save it as a PDF
+  from the browser), and has an **Export a new PDF** button.
 - The export runs on GitHub Actions (`.github/workflows/menu-pdf.yml`): it prints the published menu
   to `public/menu/menu.pdf`, saves page pictures and a copy of the menu in `public/menu/menu.json`, and
   commits them. Cloudflare then redeploys, so the files are plain static files: they cost no Worker

@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
-} from "./shared.js?v=202610171944";
+} from "./shared.js?v=202610172114";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -24,7 +24,7 @@ const markSvg = '<svg aria-hidden="true"><use href="#cb-mark"></use></svg>';
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610171944").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610172114").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
@@ -148,6 +148,7 @@ function applyTheme() {
   if (t.displayFont !== "Fraunces") useFont(df);
   if (t.bodyFont !== "Figtree") useFont(bf);
   root.setProperty("--display", df.stack);
+  root.setProperty("--display-weight", String(df.weight || 700));
   root.setProperty("--body", bf.stack);
   document.documentElement.dataset.corners = t.corners;
   document.documentElement.dataset.pattern = t.pattern;

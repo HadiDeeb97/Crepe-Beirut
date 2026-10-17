@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610171944";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610172114";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -892,7 +892,7 @@ function previewVars(t) {
   if (t.displayFont !== "Fraunces") useFont(df);
   if (t.bodyFont !== "Figtree") useFont(bf);
   const r = { soft: "14px", round: "22px", square: "5px" }[t.corners];
-  return `--p-brand:${t.brand};--p-accent:${t.accent};--p-soft:${t.soft};--p-bg:${t.background};--p-display:${df.stack};--p-body:${bf.stack};--p-r:${r};--p-pill:${t.corners === "square" ? "6px" : "999px"}`;
+  return `--p-brand:${t.brand};--p-accent:${t.accent};--p-soft:${t.soft};--p-bg:${t.background};--p-display:${df.stack};--p-dw:${df.weight || 700};--p-body:${bf.stack};--p-r:${r};--p-pill:${t.corners === "square" ? "6px" : "999px"}`;
 }
 
 function themeWarnings(t) {
@@ -955,7 +955,7 @@ function renderTheme() {
             <div class="notice-warn" data-theme-warn hidden></div>
           </div>
           <div class="section">
-            <div class="section-title"><h2>Fonts</h2></div>
+            <div class="section-title"><h2>Fonts</h2><p>Two fonts for everything: one for headlines and prices that stand out, one for all other text. They are used on the website and in the menu PDF.</p></div>
             <div class="grid-2">
               <div class="field"><label for="f-display">Headlines</label><select id="f-display" data-bind="theme.displayFont">${Object.entries(DISPLAY_FONTS).map(([k, f]) => `<option value="${esc(k)}" ${t.displayFont === k ? "selected" : ""}>${esc(f.label)}</option>`).join("")}</select></div>
               <div class="field"><label for="f-body">Text</label><select id="f-body" data-bind="theme.bodyFont">${Object.entries(BODY_FONTS).map(([k, f]) => `<option value="${esc(k)}" ${t.bodyFont === k ? "selected" : ""}>${esc(f.label)}</option>`).join("")}</select></div>

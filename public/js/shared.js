@@ -19,19 +19,20 @@ export const THEME_PRESETS = {
   blueberry:  { label: "Blueberry",      brand: "#2E3A6B", accent: "#C9D3F4", soft: "#F1ECF9", background: "#FBFAFF" }
 };
 
+// weight: the one weight each headline font is drawn in (some only come in one weight).
 export const DISPLAY_FONTS = {
-  "Fraunces": { label: "Fraunces (soft, classic)", css: "Fraunces:opsz,wght,SOFT@9..144,400..800,0..100", stack: '"Fraunces", Georgia, serif' },
-  "DM Serif Display": { label: "DM Serif Display (elegant)", css: "DM+Serif+Display", stack: '"DM Serif Display", Georgia, serif' },
-  "Gloock": { label: "Gloock (bold, retro)", css: "Gloock", stack: '"Gloock", Georgia, serif' },
-  "Baloo 2": { label: "Baloo 2 (round, playful)", css: "Baloo+2:wght@500..800", stack: '"Baloo 2", system-ui, sans-serif' },
-  "Lobster Two": { label: "Lobster Two (script)", css: "Lobster+Two:wght@700", stack: '"Lobster Two", Georgia, serif' }
+  "Fraunces": { label: "Fraunces (soft, classic)", css: "Fraunces:opsz,wght,SOFT@9..144,400..800,0..100", stack: '"Fraunces", Georgia, serif', weight: 700 },
+  "DM Serif Display": { label: "DM Serif Display (elegant)", css: "DM+Serif+Display", stack: '"DM Serif Display", Georgia, serif', weight: 400 },
+  "Gloock": { label: "Gloock (bold, retro)", css: "Gloock", stack: '"Gloock", Georgia, serif', weight: 400 },
+  "Baloo 2": { label: "Baloo 2 (round, playful)", css: "Baloo+2:wght@700", stack: '"Baloo 2", system-ui, sans-serif', weight: 700 },
+  "Lobster Two": { label: "Lobster Two (script)", css: "Lobster+Two:wght@700", stack: '"Lobster Two", Georgia, serif', weight: 700 }
 };
 
 export const BODY_FONTS = {
-  "Figtree": { label: "Figtree (clean)", css: "Figtree:wght@400..800", stack: '"Figtree", system-ui, sans-serif' },
-  "Nunito": { label: "Nunito (rounded)", css: "Nunito:wght@400..800", stack: '"Nunito", system-ui, sans-serif' },
-  "DM Sans": { label: "DM Sans (neutral)", css: "DM+Sans:opsz,wght@9..40,400..800", stack: '"DM Sans", system-ui, sans-serif' },
-  "Tajawal": { label: "Tajawal (works with Arabic)", css: "Tajawal:wght@400;500;700;800", stack: '"Tajawal", system-ui, sans-serif' }
+  "Figtree": { label: "Figtree (clean)", css: "Figtree:wght@400;700", stack: '"Figtree", system-ui, sans-serif' },
+  "Nunito": { label: "Nunito (rounded)", css: "Nunito:wght@400;700", stack: '"Nunito", system-ui, sans-serif' },
+  "DM Sans": { label: "DM Sans (neutral)", css: "DM+Sans:opsz,wght@9..40,400;9..40,700", stack: '"DM Sans", system-ui, sans-serif' },
+  "Tajawal": { label: "Tajawal (works with Arabic)", css: "Tajawal:wght@400;700", stack: '"Tajawal", system-ui, sans-serif' }
 };
 
 export const DEFAULT_THEME = {
