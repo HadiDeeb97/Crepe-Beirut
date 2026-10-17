@@ -7,7 +7,7 @@ import datetime, pathlib, re
 
 root = pathlib.Path(__file__).resolve().parent.parent
 v = datetime.datetime.now().strftime("%Y%m%d%H%M")
-files = ["public/index.html", "public/js/site.js", "public/admin/index.html", "public/admin/admin.js"]
+files = ["public/index.html", "public/js/site.js", "public/admin/index.html", "public/admin/admin.js", "public/menu-print/index.html", "public/menu-print/print.js"]
 for f in files:
     p = root / f
     s = re.sub(r"\?v=\d+", "?v=" + v, p.read_text())

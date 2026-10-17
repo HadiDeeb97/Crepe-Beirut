@@ -18,6 +18,7 @@ import * as adminOrdersClear from "../functions/api/admin/orders/clear.js";
 import * as adminOrdersExport from "../functions/api/admin/orders/export.js";
 import * as image from "../functions/api/images/[id].js";
 import * as adminImages from "../functions/api/admin/images.js";
+import * as adminMenuPdf from "../functions/api/admin/menu-pdf.js";
 import { fail, isDailyLimitError } from "../lib/server.js";
 import { renderHome } from "../lib/page.js";
 
@@ -31,6 +32,7 @@ const ROUTES = [
   { path: /^\/api\/admin\/content$/, mod: adminContent, admin: true },
   { path: /^\/api\/admin\/orders$/, mod: adminOrders, admin: true },
   { path: /^\/api\/admin\/images$/, mod: adminImages, admin: true },
+  { path: /^\/api\/admin\/menu-pdf$/, mod: adminMenuPdf, admin: true },
   { path: /^\/api\/admin\/orders\/version$/, mod: adminOrdersVersion, admin: true },
   { path: /^\/api\/admin\/orders\/clear$/, mod: adminOrdersClear, admin: true },
   { path: /^\/api\/admin\/orders\/export$/, mod: adminOrdersExport, admin: true },

@@ -73,6 +73,24 @@ Speed:
   browser never mixes a new page with old code. After big changes you can also run
   `python3 tools/bump-version.py` to give the CSS/JS files new addresses.
 
+Menu PDF:
+
+- **Menu → Menu PDF** shows the last exported PDF (with page previews), opens the printable page
+  (`/menu-print/`, A3 sheets in the style of the printed card, which you can also save as a PDF from
+  the browser), and has an **Export a new PDF** button.
+- The export runs on GitHub Actions (`.github/workflows/menu-pdf.yml`): it prints the published menu
+  to `public/menu/menu.pdf`, saves page pictures and a copy of the menu in `public/menu/menu.json`, and
+  commits them. Cloudflare then redeploys, so the files are plain static files: they cost no Worker
+  requests and no database reads. It also runs every night at 00:20 UTC, and only commits when the
+  menu changed. You can start it by hand on GitHub too: *Actions → Menu PDF → Run workflow*.
+- To use the button in the admin, create a fine-grained GitHub token for this repository with
+  **Actions: Read and write** and add it to the Worker as a Secret named `GITHUB_TOKEN`
+  (optional: `GITHUB_REPO`, default `HadiDeeb97/crepe-beirut`, and `GITHUB_BRANCH`, default `main`).
+- **If the live menu can't load** (for example the database reached its free daily limit), visitors
+  who were here before see the menu their phone saved, and new visitors see the menu from the last
+  export, with a note and a link to the PDF. Orders still go to WhatsApp (they just aren't saved in
+  the admin until the database is back).
+
 How orders work:
 
 - An order is saved when the customer presses **Send order on WhatsApp**. They still have to press
@@ -92,6 +110,8 @@ public/               the website (served as-is)
   js/shared.js        pricing, opening hours and validation (used by site, admin and server)
   js/defaults.js      starting menu and texts, used until the first publish
   admin/              admin panel (index.html, admin.css, admin.js)
+  menu-print/         printable A3 menu (print.css, print.js), the source of the PDF
+  menu/               the last exported menu.pdf, page pictures and menu.json (made by the export)
   assets/             logo files and illustrations
 src/worker.js         Worker entry: sends /api/* to the handlers below, everything else to public/
 functions/api/        API route handlers (also used directly by Cloudflare Pages)
@@ -99,7 +119,9 @@ functions/api/        API route handlers (also used directly by Cloudflare Pages
   orders.js           POST /api/orders          save an order
   admin/...           sign in/out, publish content, list and update orders
 lib/server.js         database, sessions and helpers for the API
-tools/                icon sprite and the script that inlines it into the pages
+tools/                icon sprite and the script that inlines it into the pages,
+                      bump-version.py, and export-menu-pdf.cjs (the PDF export)
+.github/workflows/    menu-pdf.yml, the PDF export on GitHub Actions
 ```
 
 ## Work on it locally

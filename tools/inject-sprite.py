@@ -7,7 +7,7 @@ import pathlib, re
 
 root = pathlib.Path(__file__).resolve().parent.parent
 sprite = (root / "tools" / "sprite.svg").read_text().strip()
-for page in ["public/index.html", "public/admin/index.html"]:
+for page in ["public/index.html", "public/admin/index.html", "public/menu-print/index.html"]:
     p = root / page
     if not p.exists():
         continue

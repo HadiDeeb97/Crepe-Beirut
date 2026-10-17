@@ -19,3 +19,9 @@
 
 /js/*
   Cache-Control: public, max-age=86400
+
+/menu/*
+  Cache-Control: no-cache
+
+/menu-print/*
+  X-Robots-Tag: noindex

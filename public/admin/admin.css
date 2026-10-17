@@ -397,6 +397,22 @@ code { font-size: 13px; background: var(--tint); padding: 1px 6px; border-radius
 .clear-backup { display: flex; gap: 10px; align-items: start; padding: 10px 12px; border-radius: var(--r-sm); background: var(--tint); font-size: 13.5px; }
 .clear-backup a { color: var(--accent); font-weight: 700; }
 .modal-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.modal-wide { width: min(680px, calc(100% - 24px)); }
+.modal-ico-brand { background: var(--tint); color: var(--brand); }
+.pdf-last { font-size: 14px; }
+.pdf-thumbs { display: flex; gap: 12px; overflow-x: auto; }
+.pdf-thumbs:empty { display: none; }
+.pdf-thumbs a { flex: none; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.pdf-thumbs img { display: block; width: 150px; height: auto; aspect-ratio: 297 / 420; object-fit: cover; }
+.pdf-note, .pdf-status { display: flex; gap: 10px; align-items: start; padding: 10px 12px; border-radius: var(--r-sm); background: var(--tint); font-size: 13.5px; }
+.pdf-status { display: block; line-height: 1.5; }
+.pdf-status.busy { display: flex; align-items: center; }
+.pdf-status.bad { background: var(--danger-bg); color: var(--danger); }
+.pdf-status ol { margin: 6px 0; padding-left: 20px; display: grid; gap: 4px; }
+.pdf-status a { color: var(--accent); font-weight: 700; }
+.pdf-status.bad a { color: inherit; }
+.spin { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--brand) 25%, transparent); border-top-color: var(--brand); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- Photos ---------- */
 .pic-cell { display: grid; justify-items: center; gap: 2px; }

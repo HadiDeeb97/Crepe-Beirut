@@ -368,6 +368,8 @@ button, input, textarea { font: inherit; color: inherit; }
 .notice { padding: 12px 14px; border-radius: var(--r-sm); background: var(--tint); font-size: var(--fs-sm); display: grid; gap: 6px; }
 .notice-warn { background: var(--warn-bg); color: var(--warn-ink); }
 .notice-warn .text-link { color: inherit; }
+.offline-note { margin-top: 8px; max-width: 46em; }
+.menu-intro .offline-note p { color: inherit; }
 .cart-empty { display: grid; justify-items: center; gap: 14px; text-align: center; padding: 10px 6px 4px; color: var(--ink-2); font-size: var(--fs-sm); }
 .cart-empty-badge {
   width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; color: var(--cocoa); --logo-hi: color-mix(in srgb, var(--cream) 70%, var(--butter));

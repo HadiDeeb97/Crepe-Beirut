@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
-} from "./shared.js?v=202610171845";
+} from "./shared.js?v=202610171944";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -24,7 +24,7 @@ const markSvg = '<svg aria-hidden="true"><use href="#cb-mark"></use></svg>';
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610171845").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610171944").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
@@ -75,10 +75,37 @@ async function fetchContent() {
     save(CONTENT_CACHE, data.content);
     return { content: data.content, ordersEnabled: !!data.ordersEnabled };
   } catch {
-    return { content: load(CONTENT_CACHE, null) || (await loadDefaults()), ordersEnabled: false };
+    const cached = load(CONTENT_CACHE, null);
+    if (cached) return { content: cached, ordersEnabled: false };
+    // New visitors: the menu from the last PDF export (a plain file, so it loads even when the
+    // database is down or past its daily limit), and only then the built-in printed menu.
+    const exported = await loadExport();
+    if (exported) return { content: exported.content, ordersEnabled: false, exportedAt: exported.exportedAt };
+    return { content: await loadDefaults(), ordersEnabled: false };
   } finally {
     clearTimeout(t);
   }
+}
+
+async function loadExport() {
+  try {
+    const r = await fetch("/menu/menu.json", { cache: "no-cache" });
+    if (!r.ok) return null;
+    const m = await r.json();
+    return m && m.content && Array.isArray(m.content.categories) && m.content.categories.length ? m : null;
+  } catch {
+    return null;
+  }
+}
+
+function renderOfflineNote(exportedAt) {
+  const note = $("[data-offline-note]");
+  if (!note) return;
+  note.hidden = !exportedAt;
+  if (!exportedAt) return;
+  let when = "";
+  try { when = new Date(exportedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: content.settings.timezone || "Asia/Beirut" }); } catch { /* leave it blank */ }
+  $("[data-offline-date]").textContent = when || "our last update";
 }
 
 /* ---------- Theme ---------- */
@@ -787,6 +814,7 @@ function renderAll() {
   if (cached && JSON.stringify(res.content) === JSON.stringify(cached)) return;
   setContent(res.content);
   renderAll();
+  try { renderOfflineNote(res.exportedAt); } catch (e) { console.error(e); }
 })();
 setInterval(() => { if (content) renderOpen(); }, 60000);
 

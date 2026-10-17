@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610171845";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610171944";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -561,7 +561,9 @@ function renderMenu() {
   const c = cats[ci];
   const base = `categories.${ci}`;
   main.innerHTML = mobileTop() + `
-    <div class="page-head"><h1>Menu</h1><span class="muted">${cats.reduce((n, x) => n + x.items.length, 0)} items in ${cats.length} sections</span></div>
+    <div class="page-head"><h1>Menu</h1><span class="muted">${cats.reduce((n, x) => n + x.items.length, 0)} items in ${cats.length} sections</span>
+      <button class="btn btn-line btn-sm" type="button" data-open-pdf>${ico("i-down")}Menu PDF</button></div>
+    ${pdfDialogHtml()}
     <div class="editor">
       <nav class="card cat-list" aria-label="Menu sections">
         ${cats.map((x, i) => `<button type="button" class="cat-btn ${i === ci ? "on" : ""} ${x.visible ? "" : "hidden-cat"}" data-pick-cat="${i}">
@@ -618,6 +620,145 @@ function renderMenu() {
         </div>
       </div>
     </div>`;
+}
+
+/* ---------- Menu PDF ----------
+   The printable menu (/menu-print/) is exported to /menu/menu.pdf by a GitHub Action, which
+   commits it so Cloudflare serves it as a plain file. The last export is also the menu new
+   visitors see if the live menu can't load (e.g. the database's daily limit). */
+
+const pdf = { meta: null, setup: null, startedAt: 0, timer: 0, waitFor: "" };
+
+function pdfDialogHtml() {
+  return `<dialog class="modal modal-wide" data-pdf-dialog aria-labelledby="pdf-title">
+    <div class="modal-body">
+      <div class="modal-head">
+        <span class="modal-ico modal-ico-brand">${ico("i-book")}</span>
+        <div><h2 id="pdf-title">Menu PDF</h2><p class="muted">Your published menu laid out like the printed card, ready to print, send or post. New visitors also see the last exported menu if the live one ever can't load, for example when the database reaches its free daily limit.</p></div>
+      </div>
+      <p class="pdf-note" data-pdf-unpublished hidden>${ico("i-bell")}<span>You have unpublished changes. Publish them first: the PDF is made from the published menu.</span></p>
+      <div class="pdf-last" data-pdf-last>Checking the last export…</div>
+      <div class="pdf-thumbs" data-pdf-thumbs></div>
+      <div class="pdf-status" data-pdf-status role="status" hidden></div>
+      <p class="form-error" data-pdf-error role="alert" hidden></p>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" type="button" data-pdf-close>Close</button>
+        <a class="btn btn-line" href="/menu-print/" target="_blank" rel="noopener">Printable page</a>
+        <a class="btn btn-line" data-pdf-download href="/menu/menu.pdf" download="crepe-beirut-menu.pdf" hidden>${ico("i-down")}Download PDF</a>
+        <button class="btn btn-brand" type="button" data-pdf-export hidden>Export a new PDF</button>
+      </div>
+    </div>
+  </dialog>`;
+}
+
+const pdfWhen = (iso) => {
+  try { return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: tz() }); } catch { return iso; }
+};
+
+async function loadPdfMeta() {
+  try {
+    const r = await fetch("/menu/menu.json?t=" + Date.now(), { cache: "no-store" });
+    pdf.meta = r.ok ? await r.json() : null;
+  } catch { pdf.meta = null; }
+}
+
+function paintPdf() {
+  const dlg = $("[data-pdf-dialog]");
+  if (!dlg) return;
+  const m = pdf.meta;
+  $("[data-pdf-unpublished]", dlg).hidden = !isDirty();
+  $("[data-pdf-last]", dlg).innerHTML = m
+    ? `<b>Last export:</b> ${esc(pdfWhen(m.exportedAt))} · ${m.pages} ${m.pages === 1 ? "page" : "pages"} (A3)`
+    : "No PDF has been exported yet.";
+  $("[data-pdf-thumbs]", dlg).innerHTML = m ? (m.images || []).map((f, i) =>
+    `<a href="/menu/${esc(f)}?h=${esc(m.hash)}" target="_blank" rel="noopener"><img src="/menu/${esc(f)}?h=${esc(m.hash)}" alt="Page ${i + 1}" loading="lazy"></a>`).join("") : "";
+  $("[data-pdf-download]", dlg).hidden = !m;
+  if (m) $("[data-pdf-download]", dlg).href = "/menu/menu.pdf?h=" + m.hash;
+
+  const st = $("[data-pdf-status]", dlg);
+  const go = $("[data-pdf-export]", dlg);
+  const s = pdf.setup;
+  go.hidden = !s || !s.configured;
+  st.hidden = false;
+  if (!s) { st.hidden = true; return; }
+  if (!s.configured) {
+    st.className = "pdf-status";
+    st.innerHTML = `<b>Connect GitHub once to export from here.</b>
+      <ol>
+        <li>On GitHub, open <i>Settings → Developer settings → Fine-grained tokens → Generate new token</i>. Choose only the <i>crepe-beirut</i> repository and give it <i>Actions: Read and write</i>.</li>
+        <li>In Cloudflare, open the Worker's <i>Settings → Variables and Secrets</i>, add a <i>Secret</i> named <code>GITHUB_TOKEN</code> with the token, and deploy.</li>
+      </ol>
+      Until then you can run <a href="${esc(s.actionsUrl)}" target="_blank" rel="noopener">Menu PDF on GitHub</a> (Run workflow). It also runs by itself every night when the menu has changed.`;
+    return;
+  }
+  if (s.problem) { st.className = "pdf-status bad"; st.textContent = s.problem; return; }
+  const run = s.lastRun;
+  const fresh = run && pdf.startedAt && Date.parse(run.startedAt) >= pdf.startedAt - 15000;
+  const busy = (pdf.startedAt && !fresh) || (run && run.status !== "completed");
+  go.disabled = !!busy || !!pdf.waitFor;
+  if (busy) {
+    st.className = "pdf-status busy";
+    st.innerHTML = `<span class="spin" aria-hidden="true"></span><span><b>Exporting the menu…</b> This takes about two minutes. ${run ? `<a href="${esc(run.url)}" target="_blank" rel="noopener">Watch it on GitHub</a>` : ""}</span>`;
+  } else if (pdf.waitFor) {
+    st.className = "pdf-status busy";
+    st.innerHTML = `<span class="spin" aria-hidden="true"></span><span><b>Exported.</b> Waiting for Cloudflare to put the new PDF online (usually a minute or two)…</span>`;
+  } else if (run && run.conclusion && run.conclusion !== "success" && run.conclusion !== "cancelled") {
+    st.className = "pdf-status bad";
+    st.innerHTML = `The last export didn't finish (${esc(run.conclusion)}). <a href="${esc(run.url)}" target="_blank" rel="noopener">See what happened</a> or try again.`;
+  } else {
+    st.hidden = true;
+  }
+}
+
+function pollPdf(delay = 10000) {
+  clearTimeout(pdf.timer);
+  pdf.timer = setTimeout(async () => {
+    const dlg = $("[data-pdf-dialog]");
+    if (!dlg || !dlg.open) return;
+    try { pdf.setup = await api("menu-pdf"); } catch { /* try again next time */ }
+    const run = pdf.setup && pdf.setup.lastRun;
+    const fresh = run && pdf.startedAt && Date.parse(run.startedAt) >= pdf.startedAt - 15000;
+    if (fresh && run.status === "completed") {
+      if (run.conclusion === "success") pdf.waitFor = pdf.waitFor || (pdf.meta ? pdf.meta.exportedAt : "none");
+      pdf.startedAt = 0;
+    }
+    if (pdf.waitFor) {
+      await loadPdfMeta();
+      if (pdf.meta && pdf.meta.exportedAt !== pdf.waitFor) { pdf.waitFor = ""; toast("The new menu PDF is online"); }
+    }
+    paintPdf();
+    const busy = pdf.startedAt || pdf.waitFor || (run && run.status !== "completed");
+    if (busy) pollPdf(pdf.waitFor ? 15000 : 10000);
+  }, delay);
+}
+
+async function openPdfDialog() {
+  const dlg = $("[data-pdf-dialog]");
+  $("[data-pdf-error]", dlg).hidden = true;
+  paintPdf();
+  dlg.showModal();
+  await Promise.all([loadPdfMeta(), api("menu-pdf").then((s) => (pdf.setup = s)).catch(() => (pdf.setup = null))]);
+  paintPdf();
+  const run = pdf.setup && pdf.setup.lastRun;
+  if (pdf.startedAt || pdf.waitFor || (run && run.status !== "completed")) pollPdf();
+}
+
+async function exportPdf() {
+  const err = $("[data-pdf-error]");
+  err.hidden = true;
+  const go = $("[data-pdf-export]");
+  go.disabled = true;
+  try {
+    await api("menu-pdf", { method: "POST" });
+    pdf.startedAt = Date.now();
+    pdf.waitFor = "";
+    paintPdf();
+    pollPdf(8000);
+  } catch (e) {
+    err.hidden = false;
+    err.textContent = e.message;
+    go.disabled = false;
+  }
 }
 
 function itemRow(it, ci, ii, n) {
@@ -1022,6 +1163,9 @@ document.addEventListener("click", async (e) => {
     return;
   }
   if ("publish" in d) return publish();
+  if ("openPdf" in d) return openPdfDialog();
+  if ("pdfClose" in d) { $("[data-pdf-dialog]").close(); return; }
+  if ("pdfExport" in d) return exportPdf();
   if ("discard" in d) { state.draft = clone(state.published); rerender(); toast("Changes discarded"); return; }
 
   // Orders

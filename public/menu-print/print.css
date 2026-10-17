@@ -1,0 +1,150 @@
+/* Printable menu: A3 sheets in the style of the printed Crepe Beirut menu.
+   Colours come from the published theme (set on <html> by print.js). */
+
+@font-face { font-family: "Fraunces"; src: url("../assets/fonts/fraunces-soft-750.woff2") format("woff2"); font-weight: 500 900; font-style: normal; font-display: block; }
+@font-face { font-family: "Figtree"; src: url("../assets/fonts/figtree-var.woff2") format("woff2"); font-weight: 300 900; font-style: normal; font-display: block; }
+
+@page { size: 297mm 420mm; margin: 0; }
+
+:root {
+  --brand: #633C20;
+  --accent: #BDD9EE;
+  --soft: #FCF0CA;
+  --paper: #FFFBF1;
+  --ink: var(--brand);
+  --muted: color-mix(in srgb, var(--brand) 55%, var(--paper));
+  --logo-hi: color-mix(in srgb, var(--paper) 70%, var(--soft));
+  --s: 1;
+}
+
+* { box-sizing: border-box; }
+.sheet svg, .bar svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sheet .badge svg, .sheet .word, .sheet .tab-pic.mark { fill: currentColor; stroke: none; }
+html, body { margin: 0; }
+body {
+  background: #E9E4DA;
+  color: var(--ink);
+  font-family: "Figtree", system-ui, sans-serif;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---------- Screen toolbar ---------- */
+.bar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  padding: 12px 20px; background: #FFFFFF; border-bottom: 1px solid #DDD5C8;
+  font-size: 14px; color: #3A2A1E;
+}
+.bar strong { font-size: 15px; }
+.bar .grow { flex: 1; min-width: 180px; color: #6E6155; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px;
+  border-radius: 999px; border: 1px solid #CFC4B5; background: #FFF; color: #3A2A1E;
+  font: 600 14px/1 "Figtree", system-ui, sans-serif; text-decoration: none; cursor: pointer;
+}
+.btn.main { background: var(--brand); border-color: var(--brand); color: #FFF; }
+.btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.status { padding: 40px 20px; text-align: center; color: #6E6155; }
+
+.sheets { display: grid; justify-content: center; gap: 28px; padding: 28px 16px 60px; }
+.sheet-wrap { width: calc(297mm * var(--s)); height: calc(420mm * var(--s)); box-shadow: 0 10px 40px rgb(0 0 0 / 0.16); }
+
+/* ---------- Sheet ---------- */
+.sheet {
+  position: relative; width: 297mm; height: 420mm; overflow: hidden;
+  background: var(--paper); transform: scale(var(--s)); transform-origin: 0 0;
+}
+.sheet-body { position: absolute; left: 30px; right: 30px; top: 30px; }
+
+/* Header on the first sheet */
+.head { position: absolute; left: 0; right: 0; top: 0; height: 300px; }
+.head .doodle { position: absolute; left: -10px; top: -8px; width: 330px; }
+.head .dots { position: absolute; right: -6px; top: 40px; width: 300px; }
+.head .center { position: absolute; left: 50%; top: 0; transform: translateX(-50%); display: grid; justify-items: center; }
+.badge {
+  width: 196px; height: 196px; border-radius: 50%; background: var(--accent);
+  display: grid; place-items: center;
+}
+.badge i { width: 152px; height: 152px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; }
+.badge svg { width: 104px; height: 82px; color: var(--brand); }
+.word { width: 196px; height: 40px; margin-top: 14px; color: var(--brand); }
+.tag { margin-top: 6px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.32em; color: var(--brand); }
+
+/* The doodle that opens later sheets, like the printed menu's second page */
+.doodle-block img { display: block; width: 100%; }
+
+/* ---------- Section boxes ---------- */
+.block { position: absolute; padding-top: 28px; }
+.box {
+  position: relative; height: 100%;
+  border: 3px solid var(--accent); border-radius: 22px;
+  padding: 36px 18px 14px 20px;
+}
+.tab { position: absolute; left: 20px; right: 14px; bottom: calc(100% - 22px); display: flex; align-items: flex-end; }
+.tab-pic { width: 66px; height: 66px; object-fit: contain; margin-right: -12px; position: relative; z-index: 1; flex: none; }
+.tab-pic.photo { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 3px solid var(--paper); margin-bottom: 2px; }
+.tab-pic.mark { width: 60px; height: 52px; color: var(--brand); padding: 4px; }
+.tab-pic.plus { width: 46px; height: 46px; margin: 0 4px 2px 0; padding: 4px; border: 2.5px solid var(--brand); border-radius: 50%; color: var(--brand); background: var(--paper); }
+.tab-name {
+  margin: 0; padding: 7px 18px 6px 22px;
+  background: var(--accent); color: var(--brand);
+  font: 750 25px/1.05 "Fraunces", Georgia, serif; text-transform: uppercase; letter-spacing: 0.01em;
+  border-radius: 6px 16px 8px 14px / 10px 8px 14px 8px;
+  white-space: nowrap; overflow: hidden; min-width: 0;
+}
+.tab-name small { font-size: 0.72em; letter-spacing: 0.02em; }
+
+.rows { list-style: none; margin: 0; padding: 0; column-gap: 30px; }
+.rows[data-cols="2"] { columns: 2; }
+.rows[data-cols="3"] { columns: 3; }
+.row {
+  display: flex; align-items: baseline; gap: 10px; padding: 2.5px 0 2.5px 17px; position: relative;
+  break-inside: avoid; font: 700 15px/1.22 "Fraunces", Georgia, serif;
+}
+.row::before { content: ""; position: absolute; left: 2px; top: 0.62em; width: 5px; height: 5px; border-radius: 50%; background: var(--brand); }
+.row .nm { flex: 1; min-width: 0; }
+.row .pr { white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.row .pr.out, td.out { font-family: "Figtree", system-ui, sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.row.grp { padding: 10px 0 2px; font: 800 11.5px/1.2 "Figtree", system-ui, sans-serif; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); break-after: avoid; }
+.row.grp::before { display: none; }
+.row.grp:first-child { padding-top: 0; }
+
+.tbl { width: 100%; border-collapse: collapse; font: 700 15px/1.22 "Fraunces", Georgia, serif; }
+.tbl th { font: 800 12px/1 "Figtree", system-ui, sans-serif; letter-spacing: 0.12em; text-transform: uppercase; text-align: right; padding: 0 0 8px 18px; white-space: nowrap; }
+.tbl td { padding: 2.5px 0; }
+.tbl td.nm { padding-left: 18px; position: relative; }
+.tbl td.nm::before { content: ""; position: absolute; left: 2px; top: 0.75em; width: 5px; height: 5px; border-radius: 50%; background: var(--brand); }
+.tbl td.pr { text-align: right; white-space: nowrap; padding-left: 18px; font-variant-numeric: tabular-nums; }
+.tbl td.none { text-align: right; padding-left: 18px; color: var(--muted); }
+
+/* ---------- Footer on every sheet ---------- */
+.foot {
+  position: absolute; left: 40px; right: 40px; bottom: 26px; height: 46px;
+  display: flex; align-items: center; justify-content: space-between; gap: 20px; color: var(--brand);
+}
+.social { display: flex; align-items: center; gap: 6px; font: 750 22px/1 "Fraunces", Georgia, serif; }
+.social i { width: 34px; height: 34px; border-radius: 9px; background: var(--brand); color: var(--paper); display: grid; place-items: center; }
+.social i svg { width: 22px; height: 22px; }
+.social span { margin-left: 6px; }
+.foot .motto { font-size: 19px; font-weight: 600; letter-spacing: 0.32em; white-space: nowrap; }
+.wa { display: flex; align-items: center; gap: 10px; font: 750 29px/1 "Fraunces", Georgia, serif; }
+.wa svg { width: 38px; height: 38px; }
+
+/* Off-screen copy used to measure boxes before placing them */
+.measure { position: absolute; left: -10000px; top: 0; visibility: hidden; }
+
+/* ---------- Export & print ---------- */
+.export body, .export .sheets { background: var(--paper); }
+.export .bar { display: none; }
+.export .sheets { padding: 0; gap: 0; }
+.export .sheet-wrap { box-shadow: none; }
+
+@media print {
+  body { background: none; }
+  .bar, .status { display: none !important; }
+  .sheets { display: block; padding: 0; }
+  .sheet-wrap { width: auto; height: auto; box-shadow: none; break-after: page; page-break-after: always; }
+  .sheet-wrap:last-child { break-after: auto; page-break-after: auto; }
+  .sheet { transform: none; }
+}
