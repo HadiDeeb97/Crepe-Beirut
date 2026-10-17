@@ -555,7 +555,13 @@ button, input, textarea { font: inherit; color: inherit; }
 .toast.show { opacity: 1; transform: none; }
 
 /* ---------- Uploaded photos ---------- */
-.hero-photo { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); object-fit: cover; border-radius: calc(var(--r-lg) - 10px); }
+.hero-photo { position: absolute; inset: 12px; width: calc(100% - 24px); height: calc(100% - 24px); object-fit: cover; border-radius: calc(var(--r-lg) - 10px); transform: scale(var(--hero-zoom, 1)); }
+/* Home picture shapes (Theme screen): circle, or no frame at all */
+.hero-art.shape-circle .hero-panel, .hero-art.shape-none .hero-panel { aspect-ratio: 1; background: none; box-shadow: none; }
+.hero-art.shape-circle .hero-panel { border-radius: 50%; }
+.hero-art.shape-circle .hero-photo { inset: 0; width: 100%; height: 100%; border-radius: 50%; }
+.hero-art.shape-none .hero-panel { border-radius: 0; overflow: visible; }
+.hero-art.shape-none .hero-photo { inset: 0; width: 100%; height: 100%; border-radius: 0; object-fit: contain; }
 .hero-art.has-photo .hero-plate, .hero-art.has-photo .hero-crepe { display: none; }
 .hero-art.no-drawings .sticker, .hero-art.no-drawings .hero-spreader, .hero-art.no-drawings .hero-pancakes { display: none; }
 .hero-art.no-drawings { padding: 0; }

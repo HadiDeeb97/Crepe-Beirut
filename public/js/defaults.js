@@ -97,6 +97,8 @@ export const DEFAULT_CONTENT = {
   "media": {
     "hero": "",
     "heroDrawings": true,
+    "heroShape": "rounded",
+    "heroZoom": 100,
     "about": ""
   },
   "categories": [

@@ -58,7 +58,8 @@ export function factsHtml(content) {
   }).join("");
 }
 
-export const DEFAULT_MEDIA = { hero: "", heroDrawings: true, about: "" };
+// heroShape: "rounded" (framed photo), "circle", or "none" (no frame, e.g. a cut-out logo); heroZoom in %.
+export const DEFAULT_MEDIA = { hero: "", heroDrawings: true, heroShape: "rounded", heroZoom: 100, about: "" };
 
 /** URL of an uploaded image (its id is the SHA-256 of the file). size "small" = the thumbnail copy. */
 export function imageUrl(id, size) {
@@ -377,7 +378,13 @@ export function normalizeContent(raw, defaults) {
   };
   if (!raw.theme) theme.preset = DEFAULT_THEME.preset;
   const m = raw.media || {};
-  const media = { hero: isImageId(m.hero) ? m.hero : "", heroDrawings: bool(m.heroDrawings, true), about: isImageId(m.about) ? m.about : "" };
+  const media = {
+    hero: isImageId(m.hero) ? m.hero : "",
+    heroDrawings: bool(m.heroDrawings, true),
+    heroShape: ["rounded", "circle", "none"].includes(m.heroShape) ? m.heroShape : "rounded",
+    heroZoom: Math.max(100, Math.min(250, Math.round(Number(m.heroZoom) || 100))),
+    about: isImageId(m.about) ? m.about : ""
+  };
   const facts = (Array.isArray(raw.facts) ? raw.facts : DEFAULT_FACTS).slice(0, 4).map((f) => ({
     kind: ["items", "extras", "text"].includes(f && f.kind) ? f.kind : "text",
     value: str(f && f.value, 24),

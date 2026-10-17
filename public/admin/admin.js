@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610171843";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610171845";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -787,7 +787,7 @@ function renderTheme() {
   const m = state.draft.media;
   const seg = (path, value, options) => `<div class="segmented" role="radiogroup">${options.map(([v, label]) =>
     `<label><input type="radio" name="${path}" value="${v}" data-bind="${path}" ${value === v ? "checked" : ""}><span>${label}</span></label>`).join("")}</div>`;
-  const picBox = (kind, id, fallback) => `<div class="media-box ${id ? "has" : ""}">
+  const picBox = (kind, id, fallback) => `<div class="media-box ${id ? "has" : ""} ${kind === "hero" && id ? "shape-" + m.heroShape : ""}" ${kind === "hero" ? `data-hero-box style="--hero-zoom:${m.heroZoom / 100}"` : ""}>
       ${id ? `<img src="${imageUrl(id)}" alt="">` : `<img class="fallback" src="${fallback}" alt="">`}
     </div>
     <div class="media-actions">
@@ -833,6 +833,13 @@ function renderTheme() {
           <div class="section">
             <div class="section-title"><h2>Home page picture</h2><p>The big picture at the top of the website. A wide photo of your crepes or shop works best.</p></div>
             ${picBox("hero", m.hero, "../assets/img/crepe.webp")}
+            ${m.hero ? `<div class="grid-2">
+              <div class="field"><span class="label">Shape</span>${seg("media.heroShape", m.heroShape, [["rounded", "Rounded square"], ["circle", "Circle"], ["none", "No frame"]])}
+                <p class="help">${{ rounded: "A framed photo, best for pictures of food or the shop.", circle: "Shows the picture as a circle, good for a round logo.", none: "No frame or background, good for a cut-out picture with a see-through background." }[m.heroShape]}</p></div>
+              <div class="field"><label for="hero-zoom">Zoom <span class="muted" data-zoom-val>${m.heroZoom}%</span></label>
+                <input id="hero-zoom" type="range" min="100" max="250" step="5" value="${m.heroZoom}" data-hero-zoom>
+                <p class="help">Zoom in to trim empty space around the picture.</p></div>
+            </div>` : ""}
             ${sw("Show the drawings around it (logo sticker, spreader, pancake)", "media.heroDrawings")}
           </div>
           <div class="section">
@@ -855,7 +862,7 @@ function renderTheme() {
           <div class="tp-head"><svg class="tp-mark" aria-hidden="true"><use href="#cb-mark"></use></svg><span class="tp-pill">Your order <b>2</b></span></div>
           <div class="tp-hero">
             <div class="tp-copy"><p class="tp-kicker">Crepes · Waffles</p><h3 class="tp-h">${esc(state.draft.texts.heroTitle)}</h3><span class="tp-btn">Start your order</span></div>
-            <div class="tp-panel">${m.hero ? `<img src="${imageUrl(m.hero)}" alt="">` : `<img class="tp-drawing" src="../assets/img/crepe.webp" alt="">`}</div>
+            <div class="tp-panel ${m.hero ? "shape-" + m.heroShape : ""}">${m.hero ? `<img src="${imageUrl(m.hero)}" alt="" style="transform:scale(${m.heroZoom / 100})">` : `<img class="tp-drawing" src="../assets/img/crepe.webp" alt="">`}</div>
           </div>
           <div class="tp-menu">
             <div class="tp-cat"><span class="tp-badge"><img src="../assets/img/crepe.webp" alt=""></span><b>Crepes</b></div>
@@ -868,6 +875,16 @@ function renderTheme() {
     </div>`;
   paintThemeExtras();
 }
+
+main.addEventListener("input", (e) => {
+  if (!e.target.matches("[data-hero-zoom]")) return;
+  themeOf();
+  state.draft.media.heroZoom = Number(e.target.value);
+  $("[data-zoom-val]").textContent = e.target.value + "%";
+  $("[data-hero-box]").style.setProperty("--hero-zoom", e.target.value / 100);
+  const pv = $(".tp-panel img"); if (pv) pv.style.transform = `scale(${e.target.value / 100})`;
+  updatePublishBar();
+});
 
 main.addEventListener("change", (e) => {
   if (!e.target.matches("[data-preview-mode]")) return;

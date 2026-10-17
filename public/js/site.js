@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
-} from "./shared.js?v=202610171843";
+} from "./shared.js?v=202610171845";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -24,7 +24,7 @@ const markSvg = '<svg aria-hidden="true"><use href="#cb-mark"></use></svg>';
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610171843").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610171845").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
@@ -147,6 +147,8 @@ function renderHeroMedia() {
   const art = $(".hero-art");
   art.classList.toggle("has-photo", !!m.hero);
   art.classList.toggle("no-drawings", !m.heroDrawings);
+  ["rounded", "circle", "none"].forEach((s) => art.classList.toggle("shape-" + s, !!m.hero && m.heroShape === s));
+  art.style.setProperty("--hero-zoom", (m.heroZoom || 100) / 100);
   const photo = $("[data-hero-photo]");
   photo.hidden = !m.hero;
   if (m.hero) photo.src = imageUrl(m.hero);
