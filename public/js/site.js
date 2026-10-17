@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
-  DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS
-} from "./shared.js?v=202610172114";
+  DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText
+} from "./shared.js?v=202610172125";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -19,12 +19,15 @@ const catPic = (cat, size) => (cat.image ? { src: imageUrl(cat.image, size), pho
 const itemPic = (it, cat, size) => (it.image ? { src: imageUrl(it.image, size), photo: true } : catPic(cat, size));
 const plusIco = '<svg class="ico" aria-hidden="true"><use href="#i-plus"></use></svg>';
 const markSvg = '<svg aria-hidden="true"><use href="#cb-mark"></use></svg>';
+// A website word as set in the admin's Website text screen, with {curly} words filled in.
+const T = (key, vars) => uiText(content && content.texts, key, vars);
+const itemsWord = (n) => n + " " + T(n === 1 ? "itemOne" : "itemMany");
 
 // The server puts the live content into the page (#cb-data). The built-in menu in defaults.js is
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610172114").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610172125").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
@@ -46,8 +49,8 @@ function renderCurrency() {
   $$("[data-currency]").forEach((r) => (r.checked = r.value === cur));
   const s = content.settings;
   $("[data-price-note]").textContent = inUsd()
-    ? `Prices in US dollars at ${s.usdRate.toLocaleString("en-US")} L.L. per $1. You can pay in either.`
-    : usdOn() ? "All prices in Lebanese pounds (L.L.). Tap $ at the top to see them in dollars." : "All prices in Lebanese pounds (L.L.).";
+    ? T("priceNoteUsd", { rate: s.usdRate.toLocaleString("en-US") })
+    : T(usdOn() ? "priceNoteBoth" : "priceNoteLbp");
 }
 
 document.addEventListener("change", (e) => {
@@ -105,7 +108,7 @@ function renderOfflineNote(exportedAt) {
   if (!exportedAt) return;
   let when = "";
   try { when = new Date(exportedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: content.settings.timezone || "Asia/Beirut" }); } catch { /* leave it blank */ }
-  $("[data-offline-date]").textContent = when || "our last update";
+  $("[data-offline-text]").innerHTML = esc(T("offlineNote")).replace(/\{date\}/g, "<b>" + esc(when || "–") + "</b>");
 }
 
 /* ---------- Theme ---------- */
@@ -163,7 +166,7 @@ function applyTheme() {
   btn.hidden = !t.allowToggle;
   const dark = isDark();
   btn.classList.toggle("is-dark", dark);
-  const label = dark ? "Switch to light mode" : "Switch to dark mode";
+  const label = T(dark ? "modeLight" : "modeDark");
   btn.setAttribute("aria-label", label);
   btn.title = label;
   const meta = document.querySelector('meta[name="theme-color"]');
@@ -199,6 +202,11 @@ function renderTexts() {
   $$("[data-text-paras]").forEach((el) => {
     el.innerHTML = String(t[el.dataset.textParas] || "").split(/\n\s*\n/).filter(Boolean).map((p) => "<p>" + esc(p.trim()) + "</p>").join("");
   });
+  $$("[data-text-ph]").forEach((el) => (el.placeholder = T(el.dataset.textPh)));
+  const seal = $("[data-seal]");
+  if (seal) seal.textContent = (T("tagline").toUpperCase() + " · ").repeat(2);
+  const info = $("[data-sent-info]");
+  if (info) info.innerHTML = esc(T("sentText")).replace(/\{phone\}/g, `<b data-wa-display>${esc(s.whatsappDisplay)}</b>`);
   $("[data-announce]").hidden = !t.announcement;
 
   const wa = "https://wa.me/" + s.whatsappNumber;
@@ -236,14 +244,14 @@ function renderHours() {
   const today = shopClock(s).day;
   table.tBodies[0].innerHTML = DAYS.map((d) => {
     const h = s.hours.find((x) => x.day === d) || {};
-    const time = h.closed ? "Closed" : h.open && h.close ? formatTime(h.open) + " – " + formatTime(h.close) : "—";
-    return `<tr class="${d === today ? "today" : ""}"><td>${DAY_NAMES[d]}${d === today ? '<span class="today-tag">Today</span>' : ""}</td><td>${time}</td></tr>`;
+    const time = h.closed ? esc(T("dayClosed")) : h.open && h.close ? formatTime(h.open) + " – " + formatTime(h.close) : "—";
+    return `<tr class="${d === today ? "today" : ""}"><td>${DAY_NAMES[d]}${d === today ? `<span class="today-tag">${esc(T("today"))}</span>` : ""}</td><td>${time}</td></tr>`;
   }).join("");
 }
 
 let openNow = null;
 function renderOpen() {
-  const st = openState(content.settings);
+  const st = openState(content.settings, new Date(), content.texts);
   openNow = st.configured ? st.open : null;
   const pill = $("[data-open-pill]");
   pill.hidden = !st.configured;
@@ -289,7 +297,7 @@ function extrasNote(cat) {
   const groups = extraGroupsFor(content, cat.id);
   if (!groups.length) return "";
   const names = groups.flatMap((g) => g.items.filter((x) => x.available).slice(0, 2).map((x) => x.name)).slice(0, 4);
-  return `<p class="cat-note">Make it yours: ${names.length ? "add " + esc(names.join(", ")) + " and more" : "add extras"} when you tap +.</p>`;
+  return names.length ? `<p class="cat-note">${esc(T("extrasNote", { extras: names.join(", ") }))}</p>` : "";
 }
 
 function renderMenu() {
@@ -301,7 +309,7 @@ function renderMenu() {
       const thumb = it.image ? `<img class="item-pic" src="${imageUrl(it.image, "small")}" alt="" loading="lazy" decoding="async" width="60" height="60">` : "";
       const sub = [it.options.length === 1 ? esc(it.options[0].label) : "", it.desc ? esc(it.desc) : ""].filter(Boolean).join(" · ");
       return `<li class="item${out ? " out" : ""}${thumb ? " has-pic" : ""}" data-item="${esc(it.id)}" data-search="${esc((it.name + " " + cat.name + " " + it.desc).toLowerCase())}">
-        ${thumb}<span class="item-name">${esc(it.name)}${it.featured && !out ? '<span class="tag tag-pop">Popular</span>' : ""}${out ? '<span class="tag tag-out">Sold out</span>' : ""}${sub ? `<span class="item-desc">${sub}</span>` : ""}</span>
+        ${thumb}<span class="item-name">${esc(it.name)}${it.featured && !out ? `<span class="tag tag-pop">${esc(T("tagPopular"))}</span>` : ""}${out ? `<span class="tag tag-out">${esc(T("tagSoldOut"))}</span>` : ""}${sub ? `<span class="item-desc">${sub}</span>` : ""}</span>
         <span class="item-price">${priceHtml(it)}</span>
         <button class="add" type="button" data-add="${esc(it.id)}" aria-label="${out ? esc(it.name) + " is sold out" : "Add " + esc(it.name)}"${out ? " disabled" : ""}>${plusIco}</button>
       </li>`;
@@ -309,7 +317,7 @@ function renderMenu() {
     return `<section class="cat" id="${esc(cat.id)}" data-cat="${esc(cat.id)}" aria-labelledby="h-${esc(cat.id)}">
       <div class="cat-head">
         <div class="cat-badge${pic.photo ? " photo" : ""}" aria-hidden="true">${pic.src ? `<img src="${pic.src}" alt="" loading="lazy" decoding="async" width="74" height="74">` : markSvg}</div>
-        <div><h3 id="h-${esc(cat.id)}">${esc(cat.name)}</h3><p class="cat-meta">${cat.items.length} ${cat.items.length === 1 ? "item" : "items"}${cat.blurb ? " · " + esc(cat.blurb) : ""}</p></div>
+        <div><h3 id="h-${esc(cat.id)}">${esc(cat.name)}</h3><p class="cat-meta">${esc(itemsWord(cat.items.length))}${cat.blurb ? " · " + esc(cat.blurb) : ""}</p></div>
       </div>
       <ul class="items">${rows}</ul>
       ${extrasNote(cat)}
@@ -356,7 +364,7 @@ function applySearch() {
   });
   const none = $("[data-no-results]");
   none.hidden = any;
-  none.textContent = any ? "" : `Nothing on the menu matches “${search.value.trim()}”. Try another word.`;
+  none.textContent = any ? "" : T("searchNone", { q: search.value.trim() });
 }
 search.addEventListener("input", applySearch);
 
@@ -403,7 +411,7 @@ function openSheet(hit) {
 
   let html = "";
   if (item.options.length) {
-    html += `<fieldset class="opt-group"><legend>${cat.id === "mini-pancakes" ? "Box size" : "Size"}</legend><div class="opts">` +
+    html += `<fieldset class="opt-group"><legend>${esc(T(cat.id === "mini-pancakes" ? "sheetBoxSize" : "sheetSize"))}</legend><div class="opts">` +
       item.options.map((o, i) => `<label class="opt"><input type="radio" name="option" value="${esc(o.label)}"${i ? "" : " checked"}><span>${esc(o.label)} <small>${price(o.price)}</small></span></label>`).join("") +
       "</div></fieldset>";
   }
@@ -413,10 +421,10 @@ function openSheet(hit) {
       "</div></fieldset>";
   }
   html += extraGroupsFor(content, cat.id).map((g) =>
-    `<fieldset class="opt-group" data-max="${g.max || 0}"><legend>${esc(g.name)} <span class="hint">· ${g.max ? "pick up to " + g.max : "optional"}</span></legend><div class="opts">` +
-    g.items.map((x) => `<label class="opt"><input type="checkbox" name="extra" value="${esc(x.id)}"${x.available ? "" : " disabled"}><span>${esc(x.name)} <small>${x.available ? extraPrice(x.price) : "sold out"}</small></span></label>`).join("") +
+    `<fieldset class="opt-group" data-max="${g.max || 0}"><legend>${esc(g.name)} <span class="hint">· ${esc(g.max ? T("sheetPickUpTo", { n: g.max }) : T("sheetOptional"))}</span></legend><div class="opts">` +
+    g.items.map((x) => `<label class="opt"><input type="checkbox" name="extra" value="${esc(x.id)}"${x.available ? "" : " disabled"}><span>${esc(x.name)} <small>${x.available ? extraPrice(x.price) : esc(T("tagSoldOut"))}</small></span></label>`).join("") +
     "</div></fieldset>").join("");
-  html += `<div class="field"><label for="sheet-note">Note for this item <span class="opt">optional</span></label><input id="sheet-note" name="note" maxlength="120" placeholder="e.g. cut in half, less sauce"></div>`;
+  html += `<div class="field"><label for="sheet-note">${esc(T("sheetNote"))} <span class="opt">${esc(T("optionalWord"))}</span></label><input id="sheet-note" name="note" maxlength="120" placeholder="${esc(T("sheetNotePlaceholder"))}"></div>`;
   $("[data-sheet-body]").innerHTML = html;
   $("[data-sheet-body]").scrollTop = 0;
   updateSheet();
@@ -440,7 +448,7 @@ function sheetLine() {
 function updateSheet() {
   const p = priceLine(index, sheetLine());
   $("[data-sheet-qty]").textContent = sheetQty;
-  $("[data-sheet-add]").textContent = "Add · " + price(p.ok ? p.total : 0);
+  $("[data-sheet-add]").textContent = T("sheetAdd", { price: price(p.ok ? p.total : 0) });
 }
 const closeSheet = () => { if (sheet.open) sheet.close(); };
 $("[data-sheet-body]").addEventListener("change", (e) => {
@@ -450,7 +458,7 @@ $("[data-sheet-body]").addEventListener("change", (e) => {
   const max = group ? Number(group.dataset.max) : 0;
   if (box && box.checked && max && $$('input[name="extra"]:checked', group).length > max) {
     box.checked = false;
-    toast(`You can pick up to ${max} here.`);
+    toast(T("toastMax", { n: max }));
   }
   updateSheet();
 });
@@ -483,7 +491,7 @@ function addLine(line, from) {
   if (found) found.qty = Math.min(MAX_QTY, found.qty + line.qty); else cart.push(line);
   commit();
   const hit = index.items.get(line.itemId);
-  toast(`Added ${line.qty} × ${hit ? hit.item.name : "item"}`);
+  toast(T("toastAdded", { qty: line.qty, name: hit ? hit.item.name : T("itemOne") }));
   const bump = () => $$("[data-count]").forEach((el) => { el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); });
   if (from && hit) flyToBag(from, itemPic(hit.item, hit.cat).src).then(bump); else bump();
 }
@@ -529,16 +537,16 @@ function renderCart() {
   $("[data-lines]").hidden = sent;
   $("[data-totals]").hidden = empty || sent;
   form.hidden = empty || sent;
-  $("[data-ticket-sub]").textContent = t.count ? `${t.count} ${t.count === 1 ? "item" : "items"} · ${orderType().toLowerCase()}` : "No items yet";
+  $("[data-ticket-sub]").textContent = t.count ? `${itemsWord(t.count)} · ${T(orderType() === "Pickup" ? "typePickup" : "typeDelivery").toLowerCase()}` : T("cartNoItems");
 
   $("[data-lines]").innerHTML = cart.map((l, i) => {
     const p = priceLine(index, l);
     const hit = index.items.get(l.itemId);
-    const name = p.ok ? p.name : hit ? hit.item.name : "Item no longer on the menu";
+    const name = p.ok ? p.name : hit ? hit.item.name : T("lineGone");
     return `<li class="line${p.ok ? "" : " bad"}">
       <span class="line-name">${esc(name)}</span>
       <span class="line-total">${p.ok ? price(p.total) : "—"}</span>
-      <span class="line-meta">${p.ok ? esc(lineMeta(p)) : "Sold out right now. Remove it to continue."}</span>
+      <span class="line-meta">${p.ok ? esc(lineMeta(p)) : esc(T("lineSoldOut"))}</span>
       <div class="line-ctrl">
         <div class="stepper" role="group" aria-label="Quantity of ${esc(name)}">
           <button type="button" data-dec="${i}" aria-label="One less"><svg class="ico"><use href="#i-minus"></use></svg></button>
@@ -559,7 +567,7 @@ function renderCart() {
   const bits = [];
   // Show the other currency under the total.
   if (usdOn() && t.total) bits.push(inUsd() ? "= " + money(t.total) : "≈ " + usd(t.total, s.usdRate));
-  if (!s.deliveryFee && orderType() === "Delivery") bits.push("If there's a delivery fee, we'll tell you on WhatsApp before we start your order.");
+  if (!s.deliveryFee && orderType() === "Delivery") bits.push(T("feeNote"));
   note.hidden = !bits.length;
   note.textContent = bits.join(" · ");
 
@@ -645,17 +653,17 @@ form.addEventListener("submit", async (e) => {
   $$(".field", form).forEach((f) => f.classList.remove("bad"));
   const missing = [];
   const mark = (n) => form.elements[n].closest(".field").classList.add("bad");
-  if (!c.name) { missing.push("your name"); mark("name"); }
-  if (c.phone.replace(/\D/g, "").length < 7) { missing.push("a phone number we can call"); mark("phone"); }
-  if (c.type === "Delivery" && !c.address) { missing.push("a delivery address"); mark("address"); }
+  if (!c.name) { missing.push(T("errName")); mark("name"); }
+  if (c.phone.replace(/\D/g, "").length < 7) { missing.push(T("errPhone")); mark("phone"); }
+  if (c.type === "Delivery" && !c.address) { missing.push(T("errAddress")); mark("address"); }
   if (missing.length) {
-    showError("Please add " + missing.join(", ") + ".");
+    showError(T("errMissing", { list: missing.join(", ") }));
     const first = $(".field.bad input, .field.bad textarea", form);
     if (first) first.focus();
     return;
   }
   const priced = cart.map((l) => priceLine(index, l));
-  if (priced.some((p) => !p.ok)) { showError("Remove the sold-out items first."); return; }
+  if (priced.some((p) => !p.ok)) { showError(T("errSoldOut")); return; }
   showError("");
   save(CUSTOMER_KEY, { name: c.name, phone: c.phone, address: c.address, type: c.type });
 
@@ -664,7 +672,7 @@ form.addEventListener("submit", async (e) => {
   try { win = window.open("about:blank", "_blank"); } catch { win = null; }
   const sendBtn = $("[data-send]");
   sendBtn.disabled = true;
-  $("[data-send-label]").textContent = "Preparing your order…";
+  $("[data-send-label]").textContent = T("sendPreparing");
 
   let number = "";
   let t = totals();
@@ -678,8 +686,8 @@ form.addEventListener("submit", async (e) => {
     } else if (res.status === 409 || res.status === 400) {
       if (win) win.close();
       sendBtn.disabled = false;
-      $("[data-send-label]").textContent = "Send order on WhatsApp";
-      showError(res.data.error || "Something in the order needs a change.");
+      $("[data-send-label]").textContent = T("sendButton");
+      showError(res.data.error || T("errGeneric"));
       if (res.data.code === "unavailable" || res.data.code === "paused") {
         const fresh = await fetchContent();
         setContent(fresh.content);
@@ -695,10 +703,10 @@ form.addEventListener("submit", async (e) => {
   if (win) { try { win.opener = null; win.location.href = url; } catch { win = null; } }
 
   sendBtn.disabled = false;
-  $("[data-send-label]").textContent = "Send order on WhatsApp";
+  $("[data-send-label]").textContent = T("sendButton");
   $("[data-sent-link]").href = url;
   $("[data-sent-text]").value = lastMessage;
-  $("[data-sent-number]").textContent = number ? "Order " + number : "Almost done";
+  $("[data-sent-number]").textContent = number ? T("sentNumber", { number }) : T("sentAlmost");
   $("[data-sent]").hidden = false;
   cart = [];
   form.elements.notes.value = "";
@@ -710,8 +718,8 @@ form.addEventListener("submit", async (e) => {
 $("[data-new-order]").addEventListener("click", () => { $("[data-sent]").hidden = true; renderCart(); });
 $("[data-copy]").addEventListener("click", () => {
   const ta = $("[data-sent-text]");
-  const fallback = () => { ta.focus(); ta.select(); toast("Selected. Copy it with your keyboard or a long press."); };
-  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(lastMessage).then(() => toast("Order copied"), fallback);
+  const fallback = () => { ta.focus(); ta.select(); toast(T("toastCopyFallback")); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(lastMessage).then(() => toast(T("toastCopied")), fallback);
   else fallback();
 });
 

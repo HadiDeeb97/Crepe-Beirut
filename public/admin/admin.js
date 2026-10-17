@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast } from "../js/shared.js?v=202610172114";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS } from "../js/shared.js?v=202610172125";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -846,7 +846,12 @@ function renderExtras() {
 function renderTexts() {
   main.innerHTML = mobileTop() + `
     <div class="page-head"><h1>Website text</h1></div>
-    <div class="stack"><div class="card">
+    <div class="stack">
+    <div class="card text-finder">
+      <label class="search">${ico("i-search")}<span class="sr">Find a text</span><input type="search" data-text-find placeholder="Find any text, e.g. “Send order” or “Total”"></label>
+      <p class="muted">Every word on the website is on this page: the main texts first, then the rest grouped by where they appear. Leave a box empty to use the original wording.</p>
+    </div>
+    <div class="card" data-text-group>
       <div class="section">
         <div class="section-title"><h2>Announcement bar</h2><p>A short message in a bar at the top of the website. Leave it empty to hide the bar.</p></div>
         ${field("Announcement", "texts.announcement", { placeholder: "e.g. New: Dubai Crepe is back this week!" })}
@@ -868,8 +873,37 @@ function renderTexts() {
         ${field("Title", "texts.contactTitle")}
         ${field("Text", "texts.contactText", { textarea: true, rows: 2 })}
       </div>
-    </div></div>`;
+    </div>
+    ${UI_TEXT_GROUPS.map((g) => `<details class="card text-group" data-text-group>
+      <summary><span><b>${esc(g.title)}</b><small class="muted">${g.note ? esc(g.note) + " · " : ""}${g.fields.length} texts</small></span>${ico("i-chev")}</summary>
+      <div class="section">${g.fields.map(([k, label, def]) => {
+        const keep = [...new Set(def.match(/\{\w+\}/g) || [])];
+        const help = keep.length ? `Keep ${keep.join(" and ")} in the text: the website fills it in.` : "";
+        return field(esc(label), "texts." + k, { placeholder: def, textarea: def.length > 90, rows: 2, help });
+      }).join("")}</div>
+    </details>`).join("")}
+    <p class="muted text-note">Day names, the WhatsApp order message and words only screen readers hear stay as they are.</p>
+    </div>`;
 }
+
+// Find a text: show only the matching boxes and open their groups.
+main.addEventListener("input", (e) => {
+  if (!e.target.matches("[data-text-find]")) return;
+  const q = e.target.value.trim().toLowerCase();
+  $$("[data-text-group]").forEach((g) => {
+    let hits = 0;
+    $$(".field", g).forEach((f) => {
+      const input = $("input, textarea", f);
+      const hay = (f.textContent + " " + input.value + " " + input.placeholder).toLowerCase();
+      const hit = !q || hay.includes(q);
+      f.hidden = !hit;
+      if (hit) hits++;
+    });
+    $$(".section", g).forEach((sec) => (sec.hidden = !!q && !$$(".field", sec).some((f) => !f.hidden)));
+    g.hidden = !!q && !hits;
+    if (g.tagName === "DETAILS") g.open = !!q && hits > 0;
+  });
+});
 
 /* ---------- Theme ---------- */
 

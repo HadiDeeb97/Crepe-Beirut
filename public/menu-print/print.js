@@ -9,7 +9,7 @@
  * sheet starts when nothing else fits. tools/export-menu-pdf.cjs prints this page to
  * public/menu/menu.pdf; it waits for window.__menuReady.
  */
-import { imageUrl, DISPLAY_FONTS, BODY_FONTS } from "../js/shared.js?v=202610172114";
+import { imageUrl, DISPLAY_FONTS, BODY_FONTS } from "../js/shared.js?v=202610172125";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -34,7 +34,7 @@ async function getContent() {
       if (data.content) return data.content;
     }
   } catch { /* fall back to the built-in menu */ }
-  const m = await import("../js/defaults.js?v=202610172114");
+  const m = await import("../js/defaults.js?v=202610172125");
   return m.DEFAULT_CONTENT;
 }
 

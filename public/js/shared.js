@@ -40,6 +40,138 @@ export const DEFAULT_THEME = {
 };
 delete DEFAULT_THEME.label;
 
+/* ---------- Website words ----------
+   Every fixed word on the website, grouped the way the admin's "Website text" screen shows them.
+   {curly} words are filled in by the site (a price, a number, a name). An empty value means the
+   original wording below. The headline texts (heroTitle, aboutText...) live in defaults.js. */
+export const UI_TEXT_GROUPS = [
+  { title: "Header and menu bar", fields: [
+    ["navFavourites", "Link: favourites", "Favourites"],
+    ["navMenu", "Link: menu", "Menu"],
+    ["navAbout", "Link: about", "About"],
+    ["navContact", "Link: hours and contact", "Hours & contact"],
+    ["orderButton", "Order button", "Your order"],
+    ["modeDark", "Dark mode button tip", "Switch to dark mode"],
+    ["modeLight", "Light mode button tip", "Switch to light mode"],
+    ["skipLink", "Keyboard “skip” link", "Skip to the menu"]
+  ] },
+  { title: "Top of the home page (buttons)", fields: [
+    ["heroCta", "Main button", "Start your order"],
+    ["heroPoint1", "First point under the buttons", "Delivery or pickup"],
+    ["heroPoint2", "Second point under the buttons", "Confirmed on WhatsApp"]
+  ] },
+  { title: "House favourites", fields: [
+    ["favKicker", "Small line above the title", "Most ordered"],
+    ["favTitle", "Title", "House favourites"],
+    ["favLink", "Link to the menu", "See the full menu"]
+  ] },
+  { title: "Menu", fields: [
+    ["menuKicker", "Small label above the section list", "Menu"],
+    ["menuTitle", "Title", "The menu"],
+    ["menuHint", "How to order (after the price note)", "Tap + to add, and choose sizes and extras as you go."],
+    ["priceNoteLbp", "Price note (Lebanese pounds only)", "All prices in Lebanese pounds (L.L.)."],
+    ["priceNoteBoth", "Price note (when dollars can be shown)", "All prices in Lebanese pounds (L.L.). Tap $ at the top to see them in dollars."],
+    ["priceNoteUsd", "Price note (showing dollars)", "Prices in US dollars at {rate} L.L. per $1. You can pay in either."],
+    ["searchPlaceholder", "Search box hint", "Search Nutella, Lotus, iced…"],
+    ["searchNone", "No search results", "Nothing on the menu matches “{q}”. Try another word."],
+    ["itemOne", "Word for one item", "item"],
+    ["itemMany", "Word for several items", "items"],
+    ["tagPopular", "Tag on house favourites", "Popular"],
+    ["tagSoldOut", "Tag on sold-out items", "Sold out"],
+    ["extrasNote", "Extras line under a section", "Make it yours: add {extras} and more when you tap +."],
+    ["offlineNote", "Note when the live menu can't load", "Our live menu is taking a short break, so this is our menu as of {date}. You can still order: it goes straight to us on WhatsApp."],
+    ["offlinePdf", "PDF link in that note", "Open the menu as a PDF"]
+  ] },
+  { title: "Item pop-up", fields: [
+    ["sheetSize", "Size heading", "Size"],
+    ["sheetBoxSize", "Size heading for mini pancakes", "Box size"],
+    ["sheetOptional", "Extras are optional", "optional"],
+    ["sheetPickUpTo", "Extras limit", "pick up to {n}"],
+    ["sheetNote", "Note label", "Note for this item"],
+    ["sheetNotePlaceholder", "Note hint", "e.g. cut in half, less sauce"],
+    ["sheetAdd", "Add button", "Add · {price}"],
+    ["toastAdded", "Message after adding", "Added {qty} × {name}"],
+    ["toastMax", "Message when too many extras", "You can pick up to {n} here."]
+  ] },
+  { title: "Your order", fields: [
+    ["cartTitle", "Title", "Your order"],
+    ["cartNoItems", "Line under the title when empty", "No items yet"],
+    ["cartEmpty", "Empty order", "Your order is empty. Add a crepe, a box of mini pancakes or a drink from the menu."],
+    ["closedNote", "Note when the shop is closed", "We're closed right now. You can still send your order, and we'll confirm it when we open."],
+    ["messageUs", "WhatsApp link (when orders are paused)", "Message us on WhatsApp"],
+    ["subtotal", "Subtotal", "Subtotal"],
+    ["deliveryFee", "Delivery fee", "Delivery"],
+    ["total", "Total", "Total"],
+    ["feeNote", "Note when there's no set delivery fee", "If there's a delivery fee, we'll tell you on WhatsApp before we start your order."],
+    ["lineGone", "Item removed from the menu", "Item no longer on the menu"],
+    ["lineSoldOut", "Item sold out", "Sold out right now. Remove it to continue."],
+    ["viewOrder", "Order bar on phones", "View your order"]
+  ] },
+  { title: "Checkout form", fields: [
+    ["typeLabel", "Delivery or pickup (for screen readers)", "Delivery or pickup"],
+    ["typeDelivery", "Delivery", "Delivery"],
+    ["typePickup", "Pickup", "Pickup"],
+    ["formName", "Name", "Name"],
+    ["formPhone", "Phone", "Phone"],
+    ["phonePlaceholder", "Phone hint", "70 123 456"],
+    ["formAddress", "Address", "Delivery address"],
+    ["addressPlaceholder", "Address hint", "Area, street, building, floor"],
+    ["formNotes", "Notes", "Notes"],
+    ["optionalWord", "“optional”", "optional"],
+    ["notesPlaceholder", "Notes hint", "Extra napkins, ring the bell…"],
+    ["sendButton", "Send button", "Send order on WhatsApp"],
+    ["sendPreparing", "Send button while sending", "Preparing your order…"],
+    ["sendHint", "Line under the send button", "WhatsApp opens with your order written out. Press send there, and we reply to confirm."],
+    ["errMissing", "Missing details", "Please add {list}."],
+    ["errName", "Missing name", "your name"],
+    ["errPhone", "Missing phone", "a phone number we can call"],
+    ["errAddress", "Missing address", "a delivery address"],
+    ["errSoldOut", "Sold-out items in the order", "Remove the sold-out items first."],
+    ["errGeneric", "Other problem", "Something in the order needs a change."]
+  ] },
+  { title: "After sending", fields: [
+    ["sentTitle", "Title", "Press send in WhatsApp"],
+    ["sentText", "Text", "Your order is written out in WhatsApp. It reaches us once you press send there. If WhatsApp didn't open, use the button below, or copy the order and message {phone}."],
+    ["sentNumber", "Order number line", "Order {number}"],
+    ["sentAlmost", "Line when there's no order number", "Almost done"],
+    ["sentOpen", "Open WhatsApp button", "Open WhatsApp"],
+    ["sentCopy", "Copy button", "Copy order"],
+    ["sentNew", "New order button", "New order"],
+    ["toastCopied", "Message after copying", "Order copied"],
+    ["toastCopyFallback", "Message when copying needs a long press", "Selected. Copy it with your keyboard or a long press."]
+  ] },
+  { title: "About, hours and footer", fields: [
+    ["aboutKicker", "Small line above About", "About us"],
+    ["contactKicker", "Small line above Hours & contact", "Hours & contact"],
+    ["mapsLink", "Maps link", "Open in Maps"],
+    ["hoursTitle", "Opening hours title", "Opening hours"],
+    ["hoursEmpty", "When no hours are set", "Message us on WhatsApp for today's hours."],
+    ["today", "“Today” tag", "Today"],
+    ["dayClosed", "Closed day", "Closed"],
+    ["openNow", "Open now", "Open now · until {time}"],
+    ["closedOpens", "Closed, opens later", "Closed · opens {when}"],
+    ["tomorrow", "“tomorrow”", "tomorrow"],
+    ["tagline", "Tagline (footer and round seal)", "The sweet side of Beirut"],
+    ["footerAbout", "Line about the shop in the footer (helps Google)", "Crepe Beirut makes crepes, mini pancakes, waffles and desserts in Beirut, Lebanon. Order delivery or pickup on WhatsApp."]
+  ] },
+  { title: "Search engines (Google)", note: "How the website shows up in Google, WhatsApp and Instagram link previews.", fields: [
+    ["seoTitle", "Page title (about 60 letters)", "Crepe Beirut | Crepes, Mini Pancakes & Waffles in Beirut, Lebanon"],
+    ["seoDescription", "Description (about 155 letters)", "Fresh crepes, mini pancakes, waffles, cheesecake, shakes and coffee in Beirut. See the menu with prices in L.L. and order delivery or pickup on WhatsApp."],
+    ["seoKeywords", "Search words, separated by commas (English, Arabic or Franco)", "crepes Beirut, crepe Lebanon, best crepes in Beirut, Nutella crepe, Lotus crepe, mini pancakes Beirut, waffles Beirut, dessert delivery Beirut, كريب بيروت, كريب لبنان, حلويات بيروت"],
+    ["seoArea", "Area or city of the shop", "Beirut"],
+    ["seoSiteUrl", "Website address, if you add your own domain (e.g. https://crepebeirut.com)", ""],
+    ["seoGoogleCode", "Google Search Console code (the content=\"…\" part of the HTML tag)", ""]
+  ] }
+];
+export const UI_TEXTS = Object.fromEntries(UI_TEXT_GROUPS.flatMap((g) => g.fields.map(([k, , v]) => [k, v])));
+
+/** A website word: what the admin wrote, else the original, with {curly} words filled in. */
+export function uiText(texts, key, vars) {
+  let s = (texts && texts[key]) || UI_TEXTS[key] || "";
+  if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m));
+  return s;
+}
+
 // The row of facts in "About us". kind "items"/"extras" show a live count; "text" shows your own words.
 export const DEFAULT_FACTS = [
   { kind: "items", value: "", label: "things on the menu" },
@@ -219,7 +351,8 @@ export function shopClock(settings, date = new Date()) {
 /**
  * { configured, open, label } where label reads like "Open now · until 1 AM" or "Closed · opens 12 PM".
  */
-export function openState(settings, date = new Date()) {
+export function openState(settings, date = new Date(), texts = null) {
+  const w = (k, vars) => uiText(texts, k, vars);
   if (!hoursConfigured(settings)) return { configured: false, open: null, label: "" };
   const byDay = Object.fromEntries((settings.hours || []).map((h) => [h.day, h]));
   const { day, minutes } = shopClock(settings, date);
@@ -234,16 +367,16 @@ export function openState(settings, date = new Date()) {
     return { o, c: c <= o ? c + 1440 : c, close: h.close };
   };
   const y = span(yesterday);
-  if (y && y.c > 1440 && minutes < y.c - 1440) return { configured: true, open: true, label: "Open now · until " + formatTime(y.close) };
+  if (y && y.c > 1440 && minutes < y.c - 1440) return { configured: true, open: true, label: w("openNow", { time: formatTime(y.close) }) };
   const t = span(today);
-  if (t && minutes >= t.o && minutes < t.c) return { configured: true, open: true, label: "Open now · until " + formatTime(t.close) };
-  if (t && minutes < t.o) return { configured: true, open: false, label: "Closed · opens " + formatTime(today.open) };
+  if (t && minutes >= t.o && minutes < t.c) return { configured: true, open: true, label: w("openNow", { time: formatTime(t.close) }) };
+  if (t && minutes < t.o) return { configured: true, open: false, label: w("closedOpens", { when: formatTime(today.open) }) };
   for (let k = 1; k <= 7; k++) {
     const d = DAYS[(di + k) % 7];
     const s = span(byDay[d]);
-    if (s) return { configured: true, open: false, label: "Closed · opens " + (k === 1 ? "tomorrow " : DAY_NAMES[d] + " ") + formatTime(byDay[d].open) };
+    if (s) return { configured: true, open: false, label: w("closedOpens", { when: (k === 1 ? w("tomorrow") + " " : DAY_NAMES[d] + " ") + formatTime(byDay[d].open) }) };
   }
-  return { configured: true, open: false, label: "Closed" };
+  return { configured: true, open: false, label: w("dayClosed") };
 }
 
 /* ---------- Phone numbers ---------- */
@@ -307,7 +440,8 @@ export function normalizeContent(raw, defaults) {
   };
   const t = raw.texts || {};
   const texts = {};
-  for (const k of Object.keys(dt)) texts[k] = str(t[k] == null ? dt[k] : t[k], k.endsWith("Text") ? 2000 : 240);
+  const allTexts = { ...UI_TEXTS, ...dt };
+  for (const k of Object.keys(allTexts)) texts[k] = str(t[k] == null ? allTexts[k] : t[k], k.endsWith("Text") && !(k in UI_TEXTS) ? 2000 : 240);
 
   if (!Array.isArray(raw.categories) || !raw.categories.length) throw new Error("The menu needs at least one section.");
   const catIds = new Set(), itemIds = new Set();

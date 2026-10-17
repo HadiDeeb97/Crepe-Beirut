@@ -502,10 +502,11 @@ button, input, textarea { font: inherit; color: inherit; }
 /* ---------- Footer ---------- */
 .foot { background: var(--band-dark); color: var(--band-dark-ink); padding-block: 44px calc(44px + 76px); }
 .foot-inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; }
-.foot-brand { display: grid; grid-template-columns: auto auto; align-items: center; gap: 4px 12px; color: var(--band-dark-ink); --logo-hi: var(--band-dark); }
+.foot-brand { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 12px; color: var(--band-dark-ink); --logo-hi: var(--band-dark); }
 .foot-mark { width: 52px; height: 41px; grid-row: span 2; }
 .foot-word { width: 150px; height: 31px; }
 .foot-tag { font-size: var(--fs-2xs); letter-spacing: .32em; text-transform: uppercase; font-weight: var(--w-bold); opacity: .7; }
+.foot-about { grid-column: 1 / -1; max-width: 34em; margin-top: 8px; font-size: var(--fs-xs); line-height: 1.5; opacity: .75; }
 .foot-nav { display: flex; gap: 22px; font-size: var(--fs-sm); font-weight: var(--w-bold); }
 .foot-nav a { text-decoration: none; opacity: .85; }
 .foot-nav a:hover { opacity: 1; text-decoration: underline; }

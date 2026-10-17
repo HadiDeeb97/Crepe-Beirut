@@ -48,7 +48,7 @@ still go to WhatsApp. They just aren't saved, and `/admin` shows what's missing.
 | **Orders** | See today's orders, sales and what's waiting. Accept, complete or cancel an order, message or call the customer, open the address in Maps, add staff notes, and delete an order or clear many at once (completed and cancelled, older than 30 days, or all), with a warning and a spreadsheet download first. New orders appear by themselves (every 20 seconds). Turn on the bell for a chime. |
 | **Menu** | Add, rename, reorder or delete sections and items, set prices or sizes, mark items sold out, star house favourites, set choices like Hot / Iced. Add a **photo** to any item, and pick a drawing or upload a photo for each section. |
 | **Extras** | Edit toppings with their prices and stock. Each group chooses the menu sections it's **offered on** (e.g. syrups on shakes, spreads on crepes) and how many a customer **can pick**. |
-| **Website text** | Announcement bar, headline and introduction, About us (text and the row of big facts, such as live item counts or your own like "12 / 25 mini pancakes a box"), contact text. |
+| **Website text** | Every word on the website. The main texts first (announcement bar, headline and introduction, About us with its row of big facts, contact text), then about 95 more in groups (header, buttons, menu, item pop-up, your order, checkout, after sending, hours, footer), with a search box to find any of them. An empty box means the original wording. Also **Search engines**: the Google title and description, search words (English, Arabic, Franco), the area, your own domain and the Google Search Console code. |
 | **Theme** | Colour sets (Crepe Beirut, Lotus caramel, Pistachio, Strawberry, Blueberry) or your own four colours, headline and text fonts, corner style, pattern (stripes, grid, plain), light or dark default look (light, dark, or match the visitor's device) and whether customers get a sun/moon button to switch, and the home page and About pictures. A live preview shows the result, and it warns you if text would be hard to read. |
 | **Shop settings** | Pause online orders, delivery fee, **prices in US dollars** (switch on, set the exchange rate, choose which currency shows first), WhatsApp number, address and Maps link, opening hours ("Open now" on the site comes from these), social links. |
 
@@ -64,6 +64,19 @@ who turn on "reduce motion" on their device see everything still.
 Type: the whole site uses two fonts (the headline and text fonts picked in **Theme**), two text
 weights (regular and bold), and one size scale (`--fs-2xs` to `--fs-hero` in `site.css`). Headline
 fonts that only come in one weight are never faked bold.
+
+Search engines (SEO):
+
+- The page title, description and search words come from **Website text → Search engines**, and
+  link previews on WhatsApp, Instagram and Facebook show `public/assets/og-card.jpg`.
+- Google gets structured data (schema.org `Restaurant`): the name (also "Crêpe Beirut" and
+  "كريب بيروت"), Beirut, Lebanon, the WhatsApp number, opening hours, social links, price range and
+  the whole menu with prices in L.L.
+- `/robots.txt` and `/sitemap.xml` are made by the Worker (`lib/seo.js`) with the site's address.
+- The footer has a short line about the shop, since Google reads what visitors can see.
+- The biggest help for "crepes near me" searches is a free **Google Business Profile** (Google
+  Maps) pointing to the website, and adding the site in **Google Search Console** (paste its code
+  in Website text → Search engines, then submit `/sitemap.xml`).
 
 Speed:
 
@@ -124,6 +137,8 @@ functions/api/        API route handlers (also used directly by Cloudflare Pages
   orders.js           POST /api/orders          save an order
   admin/...           sign in/out, publish content, list and update orders
 lib/server.js         database, sessions and helpers for the API
+lib/page.js           fills the home page with the live theme, texts and search engine tags
+lib/seo.js            search engine tags, structured data, robots.txt and sitemap.xml
 tools/                icon sprite and the script that inlines it into the pages,
                       bump-version.py, and export-menu-pdf.cjs (the PDF export)
 .github/workflows/    menu-pdf.yml, the PDF export on GitHub Actions

@@ -19,7 +19,8 @@ import * as adminOrdersExport from "../functions/api/admin/orders/export.js";
 import * as image from "../functions/api/images/[id].js";
 import * as adminImages from "../functions/api/admin/images.js";
 import * as adminMenuPdf from "../functions/api/admin/menu-pdf.js";
-import { fail, isDailyLimitError } from "../lib/server.js";
+import { fail, isDailyLimitError, loadContent } from "../lib/server.js";
+import { robotsTxt, siteOrigin, sitemapXml } from "../lib/seo.js";
 import { renderHome } from "../lib/page.js";
 
 const ROUTES = [
@@ -52,6 +53,14 @@ export default {
       const asset = await env.ASSETS.fetch(request);
       if (request.method !== "GET" || !asset.ok) return asset;
       return renderHome(request, env, asset);
+    }
+    if (path === "/robots.txt" || path === "/sitemap.xml") {
+      let data = null;
+      try { data = await loadContent(env, { cached: true }); } catch { /* still answer with the visitor's address */ }
+      const origin = siteOrigin(request, data && data.content.texts);
+      return path === "/robots.txt"
+        ? new Response(robotsTxt(origin), { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } })
+        : new Response(sitemapXml(origin, data && data.updatedAt), { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=3600" } });
     }
     if (!path.startsWith("/api/")) return env.ASSETS.fetch(request);
 
