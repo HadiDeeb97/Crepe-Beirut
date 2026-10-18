@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610181254";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle, imageIdsIn } from "../js/shared.js?v=202610181308";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -45,14 +45,20 @@ async function shrink(file, maxSide, quality = 0.82) {
   const g = c.getContext("2d");
   const toBlob = (type, q) => new Promise((r) => c.toBlob(r, type, q));
   g.drawImage(src, 0, 0, c.width, c.height);
-  let blob = await toBlob("image/webp", maxSide <= SMALL_SIDE ? 0.78 : quality);
-  if (!blob || blob.type !== "image/webp") {
-    g.globalCompositeOperation = "destination-over";
-    g.fillStyle = "#ffffff";
-    g.fillRect(0, 0, c.width, c.height);
-    blob = await toBlob("image/jpeg", 0.85);
+  const q = maxSide <= SMALL_SIDE ? 0.78 : quality;
+  let blob = await toBlob("image/webp", q);
+  if (blob && blob.type === "image/webp") return blob;
+  // Safari can't make WebP pictures itself: use the WebP encoder that comes with the admin.
+  try {
+    const { default: encodeWebp } = await import("./vendor/webp/encode.js");
+    return new Blob([await encodeWebp(g.getImageData(0, 0, c.width, c.height), Math.round(q * 100))], { type: "image/webp" });
+  } catch (e) {
+    console.warn("WebP encoder unavailable, saving as JPEG", e);
   }
-  return blob;
+  g.globalCompositeOperation = "destination-over";
+  g.fillStyle = "#ffffff";
+  g.fillRect(0, 0, c.width, c.height);
+  return toBlob("image/jpeg", 0.85);
 }
 
 /** Ask for a picture, shrink it, upload it. Resolves to the image id, or null. */
@@ -1273,7 +1279,74 @@ function renderSettings() {
         ${field("Facebook", "settings.facebook", { placeholder: "https://www.facebook.com/…" })}
         ${field("TikTok", "settings.tiktok", { placeholder: "https://www.tiktok.com/@…" })}
       </div>
+      <div class="section">
+        <div class="section-title"><h2>Photos</h2><p>Uploaded photos are saved as WebP, the lightest picture format, so the website loads fast. Photos uploaded before can be converted here.</p></div>
+        <p class="photo-status" data-photo-status>Checking your photos…</p>
+        <div><button class="btn btn-line" type="button" data-convert-photos hidden>Convert to WebP</button></div>
+      </div>
     </div></div>`;
+  photoFormats();
+}
+
+/* ---------- Converting older photos to WebP ---------- */
+
+async function photoFormats() {
+  const box = $("[data-photo-status]");
+  if (!box) return;
+  try {
+    const { images } = await api("images");
+    const used = imageIdsIn(state.draft);
+    const mine = images.filter((i) => used.has(i.id));
+    state.oldPhotos = mine.filter((i) => i.type !== "image/webp");
+    const kb = (n) => Math.round(n / 1024).toLocaleString("en-US") + " KB";
+    const n = state.oldPhotos.length;
+    box.innerHTML = !mine.length ? "No photos uploaded yet. New uploads are saved as WebP."
+      : n ? `<b>${n} of ${mine.length} ${mine.length === 1 ? "photo is" : "photos are"} JPEG or PNG</b> (${kb(state.oldPhotos.reduce((t, i) => t + i.size, 0))}). Converting makes them lighter; nothing else changes.`
+      : `All ${mine.length} ${mine.length === 1 ? "photo is" : "photos are"} WebP (${kb(mine.reduce((t, i) => t + i.size, 0))} in total).`;
+    const btn = $("[data-convert-photos]");
+    if (btn) btn.hidden = !n;
+  } catch (e) {
+    if (e.status !== 401) box.textContent = "Couldn't check the photos right now.";
+  }
+}
+
+async function convertPhotos(btn) {
+  const old = state.oldPhotos || [];
+  if (!old.length) return;
+  btn.disabled = true;
+  const map = {};
+  let saved = 0;
+  try {
+    for (const [k, img] of old.entries()) {
+      btn.textContent = `Converting ${k + 1} of ${old.length}…`;
+      const file = await (await fetch("/api/images/" + img.id)).blob();
+      const big = await shrink(file, 4096);        // same size, only the format changes
+      if (big.type !== "image/webp" || big.size >= img.size) continue;   // keep it if WebP isn't lighter
+      const r = await fetch("/api/admin/images", { method: "POST", body: big, headers: { "content-type": big.type }, credentials: "same-origin" });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "A photo couldn't be saved.");
+      const small = await shrink(file, SMALL_SIDE);
+      await fetch("/api/admin/images?of=" + data.id, { method: "POST", body: small, headers: { "content-type": small.type }, credentials: "same-origin" });
+      map[img.id] = data.id;
+      saved += img.size - big.size;
+    }
+  } catch (e) {
+    toast(e.message, true);
+  }
+  // Point the menu, sections and pictures at the WebP copies; publishing removes the old files.
+  const d = state.draft;
+  const swap = (v) => map[v] || v;
+  for (const c of d.categories) {
+    c.image = swap(c.image);
+    for (const it of c.items) it.image = swap(it.image);
+  }
+  if (d.media) { d.media.hero = swap(d.media.hero); d.media.about = swap(d.media.about); }
+  const n = Object.keys(map).length;
+  btn.disabled = false;
+  btn.textContent = "Convert to WebP";
+  updatePublishBar();
+  toast(n ? `${n} ${n === 1 ? "photo" : "photos"} converted, ${Math.round(saved / 1024)} KB lighter. Publish to use them.` : "Those photos are already as light as they get.");
+  photoFormats();
 }
 
 /* ---------- Clicks ---------- */
@@ -1299,6 +1372,7 @@ document.addEventListener("click", async (e) => {
     return;
   }
   if ("publish" in d) return publish();
+  if ("convertPhotos" in d) return convertPhotos(t);
   if ("openPdf" in d) return openPdfDialog();
   if ("pdfClose" in d) { $("[data-pdf-dialog]").close(); return; }
   if ("pdfExport" in d) return exportPdf();

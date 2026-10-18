@@ -52,8 +52,15 @@ still go to WhatsApp. They just aren't saved, and `/admin` shows what's missing.
 | **Theme** | Colour sets (Crepe Beirut, Lotus caramel, Pistachio, Strawberry, Blueberry) or your own four colours, headline and text fonts, corner style, pattern (stripes, grid, plain), light or dark default look (light, dark, or match the visitor's device) and whether customers get a sun/moon button to switch, and the home page and About pictures. A live preview shows the result, and it warns you if text would be hard to read. |
 | **Shop settings** | Pause online orders, delivery fee, **prices in US dollars** (switch on, set the exchange rate, choose which currency shows first), WhatsApp number, address and Maps link, opening hours ("Open now" on the site comes from these), social links. |
 
-Photos are shrunk in the browser before upload (up to 1600 px wide for the home page picture) and
-stored in the same D1 database, so no extra Cloudflare setup is needed. When you publish, pictures the website no longer uses
+Photos are shrunk in the browser before upload (up to 1600 px wide for the home page picture),
+saved as **WebP** and stored in the same D1 database, so no extra Cloudflare setup is needed. Safari
+can't make WebP itself, so the admin carries a WebP encoder (`public/admin/vendor/webp`, libwebp from
+Squoosh, Apache-2.0) that loads only when needed. **Shop settings → Photos** converts photos uploaded
+before as JPEG or PNG (publish afterwards; the old files are removed).
+
+Customers can tap any dish photo (menu rows, house favourites, the item pop-up) to open it full
+screen: swipe or arrows for other dishes, swipe down or Esc to close, double-tap to zoom, and an
+"Add to order" button. When you publish, pictures the website no longer uses
 (a photo you replaced or removed) are deleted. Uploads from the last 30 minutes are kept until a
 later publish, in case they're part of changes still being made.
 

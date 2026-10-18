@@ -1,5 +1,6 @@
 // POST /api/admin/images (body: the image file). Saves it and returns { id, url }.
 // POST /api/admin/images?of=<id> saves the small thumbnail copy of picture <id>.
+// GET  /api/admin/images lists the full pictures with their format and size (to convert old ones to WebP).
 // The admin panel shrinks photos before uploading, so files are small.
 import { db, fail, json } from "../../../lib/server.js";
 import { imageUrl, isImageId } from "../../../public/js/shared.js";
@@ -37,4 +38,12 @@ export async function onRequestPost({ request, env }) {
   await d.prepare("INSERT OR IGNORE INTO images (id, type, data, size, created_at) VALUES (?, ?, ?, ?, ?)")
     .bind(id, type, bytes, bytes.byteLength, new Date().toISOString()).run();
   return json({ id, url: "/api/images/" + id, size: bytes.byteLength }, { status: 201 });
+}
+
+export async function onRequestGet({ env }) {
+  const d = await db(env);
+  if (!d) return fail(503, "The database is not connected.");
+  // Full pictures only: the small copies have the same id with "s" on the end.
+  const { results } = await d.prepare("SELECT id, type, size FROM images WHERE id NOT LIKE '%s'").all();
+  return json({ images: results });
 }

@@ -90,6 +90,7 @@ export const UI_TEXT_GROUPS = [
     ["itemMany", "Word for several items", "items"],
     ["tagPopular", "Tag on house favourites", "Popular"],
     ["tagSoldOut", "Tag on sold-out items", "Sold out"],
+    ["priceFrom", "Price of items with sizes", "from {price}"],
     ["extrasNote", "Extras line under a section", "Make it yours: add {extras} and more when you tap +."],
     ["offlineNote", "Note when the live menu can't load", "Our live menu is taking a short break, so this is our menu as of {date}. You can still order: it goes straight to us on WhatsApp."],
     ["offlinePdf", "PDF link in that note", "Open the menu as a PDF"]
@@ -103,7 +104,9 @@ export const UI_TEXT_GROUPS = [
     ["sheetNotePlaceholder", "Note hint", "e.g. cut in half, less sauce"],
     ["sheetAdd", "Add button", "Add · {price}"],
     ["toastAdded", "Message after adding", "Added {qty} × {name}"],
-    ["toastMax", "Message when too many extras", "You can pick up to {n} here."]
+    ["toastMax", "Message when too many extras", "You can pick up to {n} here."],
+    ["qvAdd", "Photo view: add button", "Add to order"],
+    ["qvView", "Photo view: tip on photos", "View photo of {name}"]
   ] },
   { title: "Your order", fields: [
     ["cartTitle", "Title", "Your order"],

@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText, selfHostedCss, fromGoogle
-} from "./shared.js?v=202610181254";
+} from "./shared.js?v=202610181308";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -27,7 +27,7 @@ const itemsWord = (n) => n + " " + T(n === 1 ? "itemOne" : "itemMany");
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610181254").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610181308").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 let lastMessage = "";
@@ -285,9 +285,9 @@ function renderFavs() {
   const shown = favs.length >= 8 ? 8 : favs.length >= 4 ? 4 : favs.length; // fill whole rows of 4
   $("[data-favs]").innerHTML = favs.slice(0, shown).map(({ it, cat }) => {
     const pic = itemPic(it, cat, "small");
-    const from = it.options.length > 1 ? "from " + price(minPrice(it)) : price(minPrice(it));
+    const from = it.options.length > 1 ? T("priceFrom", { price: price(minPrice(it)) }) : price(minPrice(it));
     return `<li class="fav">
-      <div class="fav-pic${pic.photo ? " photo" : ""}">${pic.src ? `<img src="${pic.src}" alt="${pic.photo ? esc(it.name) : ""}" loading="lazy" decoding="async" width="480" height="360">` : `<div class="cat-badge">${markSvg}</div>`}</div>
+      <div class="fav-pic${pic.photo ? " photo" : ""}">${pic.src ? `<img src="${pic.src}" alt="${pic.photo ? esc(it.name) : ""}" loading="lazy" decoding="async" width="480" height="360" ${pic.photo ? qvAttrs(it) : ""}>` : `<div class="cat-badge">${markSvg}</div>`}</div>
       <div class="fav-body">
         <span class="fav-cat">${esc(cat.name)}</span>
         <div><div class="fav-name">${esc(it.name)}</div><div class="fav-price">${from}</div></div>
@@ -318,7 +318,7 @@ function renderMenu() {
     const pic = catPic(cat, "small");
     const rows = cat.items.map((it) => {
       const out = !it.available;
-      const thumb = it.image ? `<img class="item-pic" src="${imageUrl(it.image, "small")}" alt="" loading="lazy" decoding="async" width="60" height="60">` : "";
+      const thumb = it.image ? `<img class="item-pic" src="${imageUrl(it.image, "small")}" alt="${esc(it.name)}" loading="lazy" decoding="async" width="60" height="60" ${qvAttrs(it)}>` : "";
       const sub = [it.options.length === 1 ? esc(it.options[0].label) : "", it.desc ? esc(it.desc) : ""].filter(Boolean).join(" · ");
       return `<li class="item${out ? " out" : ""}${thumb ? " has-pic" : ""}" data-item="${esc(it.id)}" data-search="${esc((it.name + " " + cat.name + " " + it.desc).toLowerCase())}">
         ${thumb}<span class="item-name">${esc(it.name)}${it.featured && !out ? `<span class="tag tag-pop">${esc(T("tagPopular"))}</span>` : ""}${out ? `<span class="tag tag-out">${esc(T("tagSoldOut"))}</span>` : ""}${sub ? `<span class="item-desc">${sub}</span>` : ""}</span>
@@ -419,7 +419,11 @@ function openSheet(hit) {
   const hero = $("[data-sheet-hero]");
   hero.hidden = !pic.src;
   hero.classList.toggle("photo", pic.photo);
-  if (pic.src) $("[data-sheet-img]").src = pic.src;
+  const heroImg = $("[data-sheet-img]");
+  if (pic.src) heroImg.src = pic.src;
+  // A photo in the pop-up opens the quick view too.
+  if (pic.photo) { heroImg.dataset.qvOpen = item.id; heroImg.setAttribute("role", "button"); heroImg.tabIndex = 0; heroImg.setAttribute("aria-label", T("qvView", { name: item.name })); }
+  else { delete heroImg.dataset.qvOpen; heroImg.removeAttribute("role"); heroImg.removeAttribute("tabindex"); heroImg.removeAttribute("aria-label"); }
 
   let html = "";
   if (item.options.length) {
@@ -891,6 +895,192 @@ function renderAll() {
   try { renderOfflineNote(res.exportedAt); } catch (e) { console.error(e); }
 })();
 setInterval(() => { if (content) renderOpen(); }, 60000);
+
+/* ---------- Photo quick view ----------
+   Tap a dish photo (menu row, house favourite or the item pop-up) to see it full screen. It grows
+   out of the thumbnail, the small copy shows at once and the full photo replaces it when loaded.
+   Swipe sideways or use the arrows for the other dishes with photos, swipe down, tap outside or
+   press Esc to close, double-tap (or double-click) to zoom and drag to look around. */
+function qvAttrs(it) {
+  return `data-qv-open="${esc(it.id)}" role="button" tabindex="0" aria-label="${esc(T("qvView", { name: it.name }))}"`;
+}
+
+const qv = $("[data-qv]");
+const qvImg = $("[data-qv-img]");
+const qvStage = $("[data-qv-stage]");
+let qvList = [], qvAt = 0, qvFromSheet = false;
+let qvZoom = 1, qvPan = { x: 0, y: 0 };
+
+function qvPhotos() {
+  const out = [];
+  for (const cat of content.categories) if (cat.visible) for (const it of cat.items) if (it.image) out.push({ item: it, cat });
+  return out;
+}
+
+function qvTransform(x = 0, y = 0, z = 1, ease = false) {
+  qvImg.classList.toggle("ease", ease);
+  qvImg.style.transform = `translate(${x}px, ${y}px) scale(${z})`;
+}
+
+function qvRender() {
+  const { item, cat } = qvList[qvAt];
+  const small = imageUrl(item.image, "small"), full = imageUrl(item.image);
+  qvImg.src = small;
+  qvImg.alt = item.name;
+  const big = new Image();
+  big.decoding = "async";
+  big.onload = () => { if (qvList[qvAt] && qvList[qvAt].item === item) qvImg.src = full; };
+  big.src = full;
+  // Get the neighbours ready so swiping feels instant.
+  for (const d of [-1, 1]) { const n = qvList[(qvAt + d + qvList.length) % qvList.length]; if (n && qvList.length > 1) new Image().src = imageUrl(n.item.image); }
+  $("[data-qv-cat]").textContent = cat.name;
+  $("[data-qv-name]").textContent = item.name;
+  const desc = $("[data-qv-desc]");
+  desc.hidden = !item.desc;
+  desc.textContent = item.desc || "";
+  $("[data-qv-price]").textContent = item.options.length > 1 ? T("priceFrom", { price: price(minPrice(item)) }) : price(minPrice(item));
+  const add = $("[data-qv-add]");
+  add.hidden = qvFromSheet;
+  add.disabled = !item.available;
+  $("[data-qv-add-label]").textContent = item.available ? T("qvAdd") : T("tagSoldOut");
+  const many = qvList.length > 1;
+  $("[data-qv-count]").textContent = many ? `${qvAt + 1} / ${qvList.length}` : "";
+  $("[data-qv-prev]").hidden = $("[data-qv-next]").hidden = !many;
+  qvZoom = 1; qvPan = { x: 0, y: 0 };
+  qv.classList.remove("zoomed");
+}
+
+function qvOpen(itemId, fromEl) {
+  qvList = qvPhotos();
+  qvAt = Math.max(0, qvList.findIndex((p) => p.item.id === itemId));
+  if (!qvList.length) return;
+  qvFromSheet = !!(sheet.open && fromEl && sheet.contains(fromEl));
+  qvRender();
+  qvTransform();
+  qv.style.removeProperty("--qv-dim");
+  if (typeof qv.showModal === "function") qv.showModal(); else qv.setAttribute("open", "");
+  // Grow out of the thumbnail.
+  if (fromEl && motionOK && qvImg.animate) {
+    const run = () => {
+      const a = fromEl.getBoundingClientRect(), b = qvImg.getBoundingClientRect();
+      if (!a.width || !b.width) return;
+      const sx = a.width / b.width, sy = a.height / b.height;
+      qvImg.animate([
+        { transform: `translate(${a.left + a.width / 2 - (b.left + b.width / 2)}px, ${a.top + a.height / 2 - (b.top + b.height / 2)}px) scale(${Math.max(sx, sy)})`, opacity: .6 },
+        { transform: "translate(0, 0) scale(1)", opacity: 1 }
+      ], { duration: 320, easing: "cubic-bezier(.2, .9, .3, 1)" });
+    };
+    if (qvImg.complete && qvImg.naturalWidth) run(); else qvImg.addEventListener("load", run, { once: true });
+  }
+}
+
+function qvClose() {
+  if (!qv.open) return;
+  if (typeof qv.close === "function") qv.close(); else qv.removeAttribute("open");
+}
+
+function qvGo(d) {
+  if (qvList.length < 2) return;
+  qvAt = (qvAt + d + qvList.length) % qvList.length;
+  qvRender();
+  qvTransform();
+  if (motionOK && qvImg.animate) qvImg.animate([{ transform: `translateX(${d * 60}px)`, opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 240, easing: "ease-out" });
+}
+
+function qvZoomAt(cx, cy) {
+  const r = qvImg.getBoundingClientRect();
+  if (qvZoom > 1) { qvZoom = 1; qvPan = { x: 0, y: 0 }; }
+  else {
+    qvZoom = 2.5;
+    // Keep the tapped point under the finger.
+    const ox = cx - (r.left + r.width / 2), oy = cy - (r.top + r.height / 2);
+    qvPan = qvClamp(-ox * (qvZoom - 1), -oy * (qvZoom - 1), r.width, r.height);
+  }
+  qv.classList.toggle("zoomed", qvZoom > 1);
+  qvTransform(qvPan.x, qvPan.y, qvZoom, true);
+}
+
+function qvClamp(x, y, w, h) {
+  const mx = (w * qvZoom - w) / 2, my = (h * qvZoom - h) / 2;
+  return { x: Math.max(-mx, Math.min(mx, x)), y: Math.max(-my, Math.min(my, y)) };
+}
+
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-qv-open]");
+  if (!el) return;
+  e.preventDefault();
+  qvOpen(el.dataset.qvOpen, el);
+});
+document.addEventListener("keydown", (e) => {
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("[data-qv-open]")) { e.preventDefault(); qvOpen(e.target.dataset.qvOpen, e.target); }
+  if (!qv.open) return;
+  if (e.key === "ArrowRight") qvGo(1);
+  if (e.key === "ArrowLeft") qvGo(-1);
+});
+$("[data-qv-close]").addEventListener("click", qvClose);
+$("[data-qv-prev]").addEventListener("click", () => qvGo(-1));
+$("[data-qv-next]").addEventListener("click", () => qvGo(1));
+qv.addEventListener("click", (e) => { if (e.target === qv || e.target === qv.querySelector(".qv-top")) qvClose(); });
+$("[data-qv-add]").addEventListener("click", () => {
+  const p = qvList[qvAt];
+  if (!p || !p.item.available) return;
+  const hit = index.items.get(p.item.id);
+  qvClose();
+  if (!hit) return;
+  if (needsSheet(hit)) openSheet(hit);
+  else addLine({ itemId: hit.item.id, option: hit.item.options[0] ? hit.item.options[0].label : "", choice: "", extras: [], note: "", qty: 1 }, null);
+});
+
+// Gestures on the photo: swipe sideways for the next dish, down to close, double-tap to zoom.
+let qvPt = null, qvLastTap = { t: 0, x: 0, y: 0 };
+qvStage.addEventListener("pointerdown", (e) => {
+  if (e.target.closest(".qv-btn")) return;
+  qvPt = { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now(), axis: "", px: qvPan.x, py: qvPan.y, dx: 0, dy: 0 };
+  qvStage.setPointerCapture(e.pointerId);
+});
+qvStage.addEventListener("pointermove", (e) => {
+  if (!qvPt || e.pointerId !== qvPt.id) return;
+  const dx = e.clientX - qvPt.x, dy = e.clientY - qvPt.y;
+  qvPt.dx = dx; qvPt.dy = dy;
+  if (qvZoom > 1) {
+    const r = qvImg.getBoundingClientRect();
+    qvPan = qvClamp(qvPt.px + dx, qvPt.py + dy, r.width / qvZoom, r.height / qvZoom);
+    qvTransform(qvPan.x, qvPan.y, qvZoom);
+    return;
+  }
+  if (!qvPt.axis && Math.hypot(dx, dy) > 8) qvPt.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+  if (qvPt.axis === "x") qvTransform(qvList.length > 1 ? dx : dx / 4, 0);
+  if (qvPt.axis === "y" && dy > 0) {
+    qv.classList.add("dragging");
+    qvTransform(0, dy, Math.max(.8, 1 - dy / 1200));
+    qv.style.setProperty("--qv-dim", Math.max(.3, .9 - dy / 500).toFixed(2));
+  }
+});
+qvStage.addEventListener("pointerup", (e) => {
+  if (!qvPt || e.pointerId !== qvPt.id) return;
+  const { dx, dy, axis, t } = qvPt;
+  qvPt = null;
+  qv.classList.remove("dragging");
+  qv.style.removeProperty("--qv-dim");
+  if (qvZoom > 1) {
+    if (Math.hypot(dx, dy) < 6 && Date.now() - qvLastTap.t < 300) { qvZoomAt(e.clientX, e.clientY); qvLastTap.t = 0; }
+    else if (Math.hypot(dx, dy) < 6) qvLastTap = { t: Date.now(), x: e.clientX, y: e.clientY };
+    return;
+  }
+  if (axis === "x" && Math.abs(dx) > 60 && qvList.length > 1) { qvGo(dx < 0 ? 1 : -1); return; }
+  if (axis === "y" && dy > 110) { qvClose(); return; }
+  if (axis) { qvTransform(0, 0, 1, true); return; }
+  // A tap: twice on the photo zooms, once beside it closes.
+  if (Date.now() - t < 300) {
+    const r = qvImg.getBoundingClientRect();
+    const onImg = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    if (onImg && Date.now() - qvLastTap.t < 300 && Math.hypot(e.clientX - qvLastTap.x, e.clientY - qvLastTap.y) < 30) { qvZoomAt(e.clientX, e.clientY); qvLastTap.t = 0; }
+    else if (onImg) qvLastTap = { t: Date.now(), x: e.clientX, y: e.clientY };
+    else qvClose();
+  }
+});
+qvStage.addEventListener("pointercancel", () => { qvPt = null; qv.classList.remove("dragging"); qv.style.removeProperty("--qv-dim"); qvTransform(qvPan.x, qvPan.y, qvZoom, true); });
+qv.addEventListener("close", () => { qvZoom = 1; qv.classList.remove("zoomed", "dragging"); });
 
 /* ---------- Motion ----------
    Sections and cards float in as they scroll into view, badges spin in like batter spread on the
