@@ -10,7 +10,7 @@
  * row doesn't fit. tools/export-menu-pdf.cjs prints this page to
  * public/menu/menu.pdf; it waits for window.__menuReady.
  */
-import { imageUrl, DISPLAY_FONTS, BODY_FONTS, fontFamily, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610181750";
+import { imageUrl, DISPLAY_FONTS, BODY_FONTS, fontFamily, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610181753";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -27,6 +27,10 @@ const BOTTOM = 112;       // room kept for the footer
 async function getContent() {
   // The exporter hands over the content it fetched, so the PDF matches its record exactly.
   if (window.__MENU_CONTENT) return window.__MENU_CONTENT;
+  // The admin's "Preview" shows unpublished changes (the admin saves them here, same site).
+  if (/[?&]preview=1/.test(location.search)) {
+    try { const saved = JSON.parse(localStorage.getItem("cb-pdf-preview") || "null"); if (saved && saved.categories) return saved; } catch { /* use the published menu */ }
+  }
   try {
     const r = await fetch("/api/content", { headers: { accept: "application/json" } });
     if (r.ok) {
@@ -34,7 +38,7 @@ async function getContent() {
       if (data.content) return data.content;
     }
   } catch { /* fall back to the built-in menu */ }
-  const m = await import("../js/defaults.js?v=202610181750");
+  const m = await import("../js/defaults.js?v=202610181753");
   return m.DEFAULT_CONTENT;
 }
 
@@ -129,6 +133,7 @@ function buildBoxes(content) {
     const n = body.rows.length;
     const choice = cat.choice && cat.choice.values && cat.choice.values.length ? `<small>${esc(cat.choice.values.join(" or "))}</small>` : "";
     boxes.push({
+      id: cat.id,
       title: esc(cat.name) + choice,
       note: cat.blurb || "",
       pic: sectionPic(cat),
@@ -149,6 +154,7 @@ function buildBoxes(content) {
     const on = visible.filter((c) => onIds.has(c.id)).map((c) => c.name.toLowerCase());
     const n = rows.length;
     boxes.push({
+      id: "addons",
       addons: true,
       title: "Add-ons",
       note: on.length ? "Add to your " + listWords(on) + "." : "",
@@ -158,7 +164,23 @@ function buildBoxes(content) {
       cols: n <= 10 ? 1 : n <= 20 ? 2 : 4
     });
   }
-  return boxes;
+  return arrange(boxes, content.pdf);
+}
+
+// The admin's choices (Menu → Menu PDF → Arrange): sections hidden from the PDF, and in "My order"
+// mode the order and which sections start a new page. Sections added later go at the end.
+function arrange(boxes, pdf) {
+  if (!pdf) return boxes;
+  const hidden = new Set(pdf.hidden || []);
+  let list = boxes.filter((b) => !hidden.has(b.id));
+  if (pdf.mode === "custom") {
+    const pos = new Map((pdf.order || []).map((id, i) => [id, i]));
+    const rank = (b, i) => (pos.has(b.id) ? pos.get(b.id) : 10000 + i);
+    list = list.map((b, i) => ({ b, r: rank(b, i) })).sort((p, q) => p.r - q.r).map((x) => x.b);
+    const np = new Set(pdf.newPage || []);
+    for (const b of list) b.newPage = np.has(b.id);
+  }
+  return list;
 }
 
 /* ---------- HTML ---------- */
@@ -222,7 +244,7 @@ const miniHtml = () => `<div class="awning"></div><div class="mini"><div class="
 
 /* ---------- Layout ---------- */
 
-function layout(boxes, W, sheetH) {
+function layout(boxes, W, sheetH, custom = false) {
   const colW = (W - GUTTER * (COLS - 1)) / COLS;
   const width = (span) => colW * span + GUTTER * (span - 1);
   const x = (c) => c * (colW + GUTTER);
@@ -241,7 +263,7 @@ function layout(boxes, W, sheetH) {
     let rest = box.rows;
     let first = true;
     while (rest.length) {
-      const part = first ? box : { ...box, note: "", title: box.title + "<small>continued</small>" };
+      const part = first ? box : { ...box, newPage: false, note: "", title: box.title + "<small>continued</small>" };
       let take = rest.length;
       let h = heightOf(part, rest);
       if (h > limit) {
@@ -329,6 +351,35 @@ function layout(boxes, W, sheetH) {
   };
 
   const sheets = [];
+  if (custom) {
+    // "My order": rows of three in exactly the admin's order, left to right. A section that
+    // doesn't fit beside the others starts the next row; titles in a row always line up.
+    let sheet = null, y = 0, row = [], used = 0;
+    const newSheet = () => {
+      sheet = { first: !sheets.length, rows: [], bottom: 0 };
+      sheets.push(sheet);
+      y = sheet.first ? FIRST_TOP : NEXT_TOP;
+    };
+    const flush = () => {
+      if (!row.length) return;
+      const h = Math.max(...row.map((b) => b.h));
+      if (y + h > maxY && sheet.rows.length) newSheet();
+      let col = 0;
+      sheet.rows.push({ members: row.map((box) => { const m = { box, col, dy: 0 }; col += box.span; return m; }), h, y });
+      y += h + GAP;
+      sheet.bottom = y - GAP;
+      row = []; used = 0;
+    };
+    newSheet();
+    for (const box of queue) {
+      if (box.newPage && (row.length || sheet.rows.length)) { flush(); newSheet(); }
+      if (used + box.span > COLS) flush();
+      row.push(box);
+      used += box.span;
+      if (used >= COLS) flush();
+    }
+    flush();
+  } else {
   let pending = queue;
   while (pending.length) {
     const first = !sheets.length;
@@ -354,6 +405,8 @@ function layout(boxes, W, sheetH) {
       sheets.pop();
       break;
     }
+  }
+
   }
 
   // Spread spare space evenly between the rows so a sheet doesn't end in a gap.
@@ -389,7 +442,7 @@ async function render() {
   const probe = $(".sheet", host);
   const sheetW = probe.offsetWidth, sheetH = probe.offsetHeight;
 
-  const { sheets, x, width } = layout(buildBoxes(content), sheetW - SIDE * 2, sheetH);
+  const { sheets, x, width } = layout(buildBoxes(content), sheetW - SIDE * 2, sheetH, !!(content.pdf && content.pdf.mode === "custom"));
   const foot = footHtml(settings);
   host.innerHTML = sheets.map((sh) => `<div class="sheet-wrap"><section class="sheet">
     ${sh.first ? mastheadHtml(settings) : miniHtml()}

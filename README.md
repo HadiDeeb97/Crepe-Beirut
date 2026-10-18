@@ -101,6 +101,10 @@ Speed:
 
 Menu PDF:
 
+- **Arrange the sections** (in the same dialog): *Automatic* groups sections of similar length so
+  pages fill neatly; *My order* keeps your order (drag or arrows), three to a row, left to right,
+  with an optional *New page* before any section. Any section can be hidden from the PDF. Titles in
+  a row always line up. *Preview* shows the result before publishing; publish, then export.
 - **Menu → Menu PDF** shows the last exported PDF (with page previews), opens the printable page
   (`/menu-print/`: A3 sheets with the striped awning and CB badge, sections with dotted price
   leaders and an add-ons band, in the theme's colours and two fonts; you can also save it as a PDF

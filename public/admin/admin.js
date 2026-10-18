@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle, imageIdsIn } from "../js/shared.js?v=202610181750";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle, imageIdsIn } from "../js/shared.js?v=202610181753";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -757,6 +757,7 @@ function pdfDialogHtml() {
       <div class="pdf-last" data-pdf-last>Checking the last export…</div>
       <div class="pdf-thumbs" data-pdf-thumbs></div>
       <div class="pdf-status" data-pdf-status role="status" hidden></div>
+      <div class="pdf-arrange" data-pdf-arrange></div>
       <p class="form-error" data-pdf-error role="alert" hidden></p>
       <div class="modal-foot">
         <button class="btn btn-ghost" type="button" data-pdf-close>Close</button>
@@ -856,10 +857,130 @@ function pollPdf(delay = 10000) {
   }, delay);
 }
 
+/* Arranging the sections of the PDF (saved in the content as "pdf", published like the rest). */
+function pdfSections() {
+  const d = state.draft;
+  const list = d.categories.filter((c) => c.visible && c.items.length).map((c) => ({ id: c.id, name: c.name, n: c.items.length }));
+  if (d.extras.some((g) => g.items.length)) list.push({ id: "addons", name: "Add-ons", n: d.extras.reduce((t, g) => t + g.items.length, 0) });
+  return list;
+}
+
+// A working copy of the arrangement; it's written to the draft (savePlan) only when changed.
+function pdfPlan() {
+  const d = state.draft;
+  const cur = d.pdf || {};
+  const p = { mode: cur.mode === "custom" ? "custom" : "auto", order: [...(cur.order || [])], hidden: [...(cur.hidden || [])], newPage: [...(cur.newPage || [])] };
+  const all = pdfSections();
+  const ids = new Set(all.map((x) => x.id));
+  // The saved order first, then any sections added since, in menu order.
+  p.order = [...p.order.filter((id) => ids.has(id)), ...all.map((x) => x.id).filter((id) => !p.order.includes(id))];
+  return { p, byId: new Map(all.map((x) => [x.id, x])) };
+}
+
+function paintArrange() {
+  const box = $("[data-pdf-arrange]");
+  if (!box) return;
+  const { p, byId } = pdfPlan();
+  const custom = p.mode === "custom";
+  const ids = custom ? p.order : [...byId.keys()];
+  box.innerHTML = `
+    <div class="arr-head">
+      <b>Arrange the sections</b>
+      <div class="arr-modes" role="radiogroup" aria-label="Arrangement">
+        <label><input type="radio" name="pdf-mode" value="auto" ${custom ? "" : "checked"} data-pdf-mode><span>Automatic</span></label>
+        <label><input type="radio" name="pdf-mode" value="custom" ${custom ? "checked" : ""} data-pdf-mode><span>My order</span></label>
+      </div>
+    </div>
+    <p class="muted arr-help">${custom
+      ? "Sections go in this order, three to a row, left to right; size tables take two places. Titles in a row always line up. Drag or use the arrows to move a section."
+      : "Sections of similar length are grouped in rows so the pages fill up neatly, and titles in a row line up. Choose “My order” to set the order yourself."}</p>
+    <ol class="arr-list ${custom ? "custom" : ""}" data-arr-list>
+      ${ids.map((id, i) => {
+        const x = byId.get(id);
+        const hidden = p.hidden.includes(id);
+        return `<li class="arr-row ${hidden ? "off" : ""}" data-arr-id="${esc(id)}" ${custom ? 'draggable="true"' : ""}>
+          ${custom ? `<span class="arr-grip" aria-hidden="true">${ico("i-grip")}</span><span class="arr-n num">${i + 1}</span>` : ""}
+          <span class="arr-name"><b>${esc(x.name)}</b><small class="muted">${x.n} ${id === "addons" ? "extras" : x.n === 1 ? "item" : "items"}</small></span>
+          ${custom ? `<label class="arr-chk"><input type="checkbox" data-pdf-page="${esc(id)}" ${p.newPage.includes(id) ? "checked" : ""}>New page</label>` : ""}
+          <label class="arr-chk"><input type="checkbox" data-pdf-show="${esc(id)}" ${hidden ? "" : "checked"}>Show</label>
+          ${custom ? `<span class="arr-move">
+            <button type="button" class="icon-btn" data-pdf-move="${esc(id)}" data-dir="-1" aria-label="Move ${esc(x.name)} up" ${i ? "" : "disabled"}>${ico("i-up")}</button>
+            <button type="button" class="icon-btn" data-pdf-move="${esc(id)}" data-dir="1" aria-label="Move ${esc(x.name)} down" ${i < ids.length - 1 ? "" : "disabled"}>${ico("i-down")}</button>
+          </span>` : ""}
+        </li>`;
+      }).join("")}
+    </ol>
+    <div class="arr-foot">
+      <button class="btn btn-line btn-sm" type="button" data-pdf-preview>${ico("i-eye")}Preview</button>
+      <span class="muted">${isDirty() ? "Publish your changes to keep them, then export a new PDF." : "Changes here are saved when you publish."}</span>
+    </div>`;
+}
+
+function arrangeChanged(p) {
+  state.draft.pdf = p;
+  updatePublishBar();
+  paintArrange();
+  const note = $("[data-pdf-unpublished]");
+  if (note) note.hidden = !isDirty();
+}
+
+main.addEventListener("change", (e) => {
+  const t = e.target;
+  if (!t.closest("[data-pdf-arrange]")) return;
+  const { p } = pdfPlan();
+  if (t.matches("[data-pdf-mode]")) p.mode = t.value === "custom" ? "custom" : "auto";
+  else if (t.dataset.pdfShow) {
+    const id = t.dataset.pdfShow;
+    p.hidden = t.checked ? p.hidden.filter((x) => x !== id) : [...p.hidden, id];
+  } else if (t.dataset.pdfPage) {
+    const id = t.dataset.pdfPage;
+    p.newPage = t.checked ? [...p.newPage, id] : p.newPage.filter((x) => x !== id);
+  } else return;
+  arrangeChanged(p);
+});
+
+function movePdfSection(id, to) {
+  const { p } = pdfPlan();
+  const from = p.order.indexOf(id);
+  if (from < 0 || to < 0 || to >= p.order.length || to === from) return;
+  p.order.splice(to, 0, p.order.splice(from, 1)[0]);
+  arrangeChanged(p);
+  const btn = $(`[data-pdf-move="${CSS.escape(id)}"][data-dir="${to > from ? 1 : -1}"]`);
+  if (btn && !btn.disabled) btn.focus();
+}
+
+// Drag and drop on computers (the arrows do the same on phones and with the keyboard).
+let dragId = null;
+main.addEventListener("dragstart", (e) => {
+  const row = e.target.closest && e.target.closest(".arr-list.custom .arr-row");
+  if (!row) return;
+  dragId = row.dataset.arrId;
+  row.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", dragId);
+});
+main.addEventListener("dragover", (e) => {
+  const row = dragId && e.target.closest && e.target.closest(".arr-list.custom .arr-row");
+  if (!row) return;
+  e.preventDefault();
+  $$(".arr-row.drop").forEach((r) => r.classList.remove("drop"));
+  row.classList.add("drop");
+});
+main.addEventListener("drop", (e) => {
+  const row = dragId && e.target.closest && e.target.closest(".arr-list.custom .arr-row");
+  if (!row) return;
+  e.preventDefault();
+  const { p } = pdfPlan();
+  movePdfSection(dragId, p.order.indexOf(row.dataset.arrId));
+  dragId = null;
+});
+main.addEventListener("dragend", () => { dragId = null; $$(".arr-row.dragging, .arr-row.drop").forEach((r) => r.classList.remove("dragging", "drop")); });
+
 async function openPdfDialog() {
   const dlg = $("[data-pdf-dialog]");
   $("[data-pdf-error]", dlg).hidden = true;
   paintPdf();
+  paintArrange();
   dlg.showModal();
   await Promise.all([loadPdfMeta(), api("menu-pdf").then((s) => (pdf.setup = s)).catch(() => (pdf.setup = null))]);
   paintPdf();
@@ -1401,6 +1522,13 @@ document.addEventListener("click", async (e) => {
   if ("openPdf" in d) return openPdfDialog();
   if ("pdfClose" in d) { $("[data-pdf-dialog]").close(); return; }
   if ("pdfExport" in d) return exportPdf();
+  if (d.pdfMove) { const { p } = pdfPlan(); movePdfSection(d.pdfMove, p.order.indexOf(d.pdfMove) + Number(d.dir)); return; }
+  if ("pdfPreview" in d) {
+    // The printable page reads this to show the unpublished arrangement.
+    try { localStorage.setItem("cb-pdf-preview", JSON.stringify(state.draft)); } catch { /* storage full or off */ }
+    window.open("/menu-print/?preview=1", "_blank", "noopener");
+    return;
+  }
   if ("discard" in d) { state.draft = clone(state.published); rerender(); toast("Changes discarded"); return; }
 
   // Orders

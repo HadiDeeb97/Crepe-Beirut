@@ -559,7 +559,18 @@ export function normalizeContent(raw, defaults) {
     value: str(f && f.value, 24),
     label: str(f && f.label, 40)
   }));
-  return { version: 1, settings, texts, theme, media, facts, categories, extras };
+  // Menu PDF arrangement: "auto" groups sections of similar length; "custom" keeps the admin's
+  // order (rows of three, left to right). "addons" is the add-ons band.
+  const pdfIn = raw.pdf || {};
+  const pdfIds = new Set([...categories.map((c) => c.id), "addons"]);
+  const idList = (v) => [...new Set((Array.isArray(v) ? v : []).map(String))].filter((id) => pdfIds.has(id));
+  const pdf = {
+    mode: pdfIn.mode === "custom" ? "custom" : "auto",
+    order: idList(pdfIn.order),
+    hidden: idList(pdfIn.hidden),
+    newPage: idList(pdfIn.newPage)
+  };
+  return { version: 1, settings, texts, theme, media, facts, categories, extras, pdf };
 }
 
 /* ---------- Dates in the shop's time zone ---------- */
