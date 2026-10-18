@@ -220,7 +220,8 @@ button, input, textarea { font: inherit; color: inherit; }
 /* ---------- Hero ---------- */
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); align-items: center; padding-block: clamp(28px, 5vw, 64px) clamp(40px, 6vw, 88px); }
 .hero-copy { display: grid; gap: 22px; min-width: 0; }
-.hero h1 { font-size: var(--fs-hero); font-weight: var(--display-weight); letter-spacing: -.025em; }
+/* The home page headline uses the text font (bold), not the headline font. */
+.hero h1 { font-family: var(--body); font-variation-settings: normal; font-size: var(--fs-hero); font-weight: var(--w-bold); letter-spacing: -.025em; }
 .hero-lede { font-size: var(--fs-lg); color: var(--ink-2); max-width: 32em; }
 .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; }
 .hero-facts { list-style: none; margin: 6px 0 0; padding: 18px 0 0; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 10px 26px; font-size: var(--fs-sm); font-weight: var(--w-bold); }
