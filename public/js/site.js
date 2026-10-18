@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText, selfHostedCss, fromGoogle
-} from "./shared.js?v=202610181756";
+} from "./shared.js?v=202610181757";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -27,7 +27,7 @@ const itemsWord = (n) => n + " " + T(n === 1 ? "itemOne" : "itemMany");
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610181756").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610181757").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 if (!Array.isArray(cart)) cart = [];
@@ -700,8 +700,12 @@ function buildMessage(c, number, priced, t) {
   if (c.type === "Delivery") out.push(`*Address:* ${c.address}`);
   out.push("");
   priced.forEach((p, i) => {
-    out.push(`${i + 1}. ${p.qty} × ${p.name}${p.option ? " (" + p.option + ")" : ""}${p.choice ? " – " + p.choice : ""} — ${money(p.total)}`);
-    if (p.extras.length) out.push("    + " + p.extras.map((x) => x.name).join(", "));
+    // With extras, the line's price (item + extras) comes after the extras.
+    const head = `${i + 1}. ${p.qty} × ${p.name}${p.option ? " (" + p.option + ")" : ""}${p.choice ? " – " + p.choice : ""}`;
+    if (p.extras.length) {
+      out.push(head);
+      out.push("    + " + p.extras.map((x) => x.name).join(", ") + " — " + money(p.total));
+    } else out.push(head + " — " + money(p.total));
     if (p.note) out.push("    Note: " + p.note);
   });
   out.push("");
