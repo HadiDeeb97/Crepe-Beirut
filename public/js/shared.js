@@ -27,15 +27,25 @@ export const DISPLAY_FONTS = {
   "DM Serif Display": { label: "DM Serif Display (elegant)", css: "DM+Serif+Display", stack: '"DM Serif Display", Georgia, serif', weight: 400 },
   "Gloock": { label: "Gloock (bold, retro)", css: "Gloock", stack: '"Gloock", Georgia, serif', weight: 400 },
   "Baloo 2": { label: "Baloo 2 (round, playful)", css: "Baloo+2:wght@700", stack: '"Baloo 2", system-ui, sans-serif', weight: 700 },
-  "Lobster Two": { label: "Lobster Two (script)", css: "Lobster+Two:wght@700", stack: '"Lobster Two", Georgia, serif', weight: 700 }
+  "Lobster Two": { label: "Lobster Two (script)", css: "Lobster+Two:wght@700", stack: '"Lobster Two", Georgia, serif', weight: 700 },
+  "Merienda": { label: "Merienda (friendly, handwritten)", css: "Merienda:wght@700", stack: '"Merienda", Georgia, serif', weight: 700 }
 };
 
+// Text fonts: the text-only ones, then every headline font too. Text needs a regular (400) and a
+// bold (700) weight, so headline fonts load both here where they have them.
 export const BODY_FONTS = {
   "Figtree": { label: "Figtree (clean)", css: "Figtree:wght@400;700", stack: '"Figtree", system-ui, sans-serif', builtin: true },
   "Sovba": { label: "Sovba (hand-drawn)", stack: '"Sovba", system-ui, sans-serif', files: [{ src: "/assets/fonts/sovba-regular.woff2", weight: 400 }, { src: "/assets/fonts/sovba-bold-oblique.woff2", weight: 700 }] },
   "Nunito": { label: "Nunito (rounded)", css: "Nunito:wght@400;700", stack: '"Nunito", system-ui, sans-serif' },
   "DM Sans": { label: "DM Sans (neutral)", css: "DM+Sans:opsz,wght@9..40,400;9..40,700", stack: '"DM Sans", system-ui, sans-serif' },
-  "Tajawal": { label: "Tajawal (works with Arabic)", css: "Tajawal:wght@400;700", stack: '"Tajawal", system-ui, sans-serif' }
+  "Tajawal": { label: "Tajawal (works with Arabic)", css: "Tajawal:wght@400;700", stack: '"Tajawal", system-ui, sans-serif' },
+  "Fraunces": { label: "Fraunces (soft, classic)", css: "Fraunces:opsz,wght,SOFT@9..144,400..700,100", stack: '"Fraunces", Georgia, serif' },
+  "Merienda": { label: "Merienda (friendly, handwritten)", css: "Merienda:wght@400;700", stack: '"Merienda", Georgia, serif' },
+  "Milkshake": { label: "Milkshake (bold script)", stack: DISPLAY_FONTS.Milkshake.stack, files: DISPLAY_FONTS.Milkshake.files },
+  "DM Serif Display": { label: "DM Serif Display (elegant)", css: "DM+Serif+Display", stack: '"DM Serif Display", Georgia, serif' },
+  "Gloock": { label: "Gloock (bold, retro)", css: "Gloock", stack: '"Gloock", Georgia, serif' },
+  "Baloo 2": { label: "Baloo 2 (round, playful)", css: "Baloo+2:wght@400;700", stack: '"Baloo 2", system-ui, sans-serif' },
+  "Lobster Two": { label: "Lobster Two (script)", css: "Lobster+Two:wght@400;700", stack: '"Lobster Two", Georgia, serif' }
 };
 
 /* Where a font comes from: "builtin" ones are declared in the site's CSS, "files" ones are hosted
