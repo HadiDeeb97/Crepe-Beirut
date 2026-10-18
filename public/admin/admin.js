@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle, imageIdsIn } from "../js/shared.js?v=202610181731";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle, imageIdsIn } from "../js/shared.js?v=202610181750";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -239,13 +239,14 @@ async function loadOrders({ quiet = false } = {}) {
     o.list = data.orders;
     o.byStatus = data.byStatus;
     o.summary = data.summary;
-    o.newestId = data.newestId;
+    // Never go backwards (after deleting the newest order), so the next one isn't counted twice.
+    o.newestId = Math.max(prevNewest || 0, data.newestId || 0);
     o.fetchedAt = Date.now();
     lastFullLoad = Date.now();
     o.error = "";
     if (prevNewest != null && data.newestId > prevNewest) {
       for (const x of data.orders) if (x.id > prevNewest) freshIds.add(x.id);
-      const n = data.newestId - prevNewest;
+      const n = data.orders.filter((x) => x.id > prevNewest).length || 1;
       toast(n === 1 ? "New order " + orderNumber(data.newestId) : n + " new orders");
       chime();
     }
@@ -289,8 +290,13 @@ async function checkForChanges() {
 function startPolling() {
   clearInterval(pollTimer);
   pollTimer = setInterval(checkForChanges, 20000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForChanges(); });
 }
+function stopPolling() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  clearTimeout(pdf.timer);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && pollTimer) checkForChanges(); });
 
 function renderOrders() {
   main.innerHTML = mobileTop() + `
@@ -466,6 +472,9 @@ function paintDraftDetail(box, x) {
 function paintDetail() {
   const box = $("[data-detail]");
   if (!box) return;
+  // Don't redraw under someone typing a staff note (the background refresh would wipe it).
+  const typing = document.activeElement;
+  if (typing && box.contains(typing) && typing.matches("[data-staff-note]") && state.orders.selected && typing.value !== (state.orders.selected.staffNote || "")) return;
   if (state.orders.status === "unfinished") {
     const dr = state.orders.draft;
     $("[data-orders]").classList.toggle("show-detail", !!dr);
@@ -631,7 +640,7 @@ main.addEventListener("input", (e) => {
   if (kind === "bool") v = el.checked;
   if (kind === "digits") v = v.replace(/\D/g, "");
   setPath(state.draft, el.dataset.bind, v);
-  if (el.dataset.refresh) rerender();
+  if (el.dataset.refresh === "yes") rerender();
   updatePublishBar();
 });
 main.addEventListener("change", (e) => {
@@ -801,7 +810,7 @@ function paintPdf() {
   }
   if (s.problem) { st.className = "pdf-status bad"; st.textContent = s.problem; return; }
   const run = s.lastRun;
-  const fresh = run && pdf.startedAt && Date.parse(run.startedAt) >= pdf.startedAt - 15000;
+  const fresh = pdfFresh(run);
   const busy = (pdf.startedAt && !fresh) || (run && run.status !== "completed");
   go.disabled = !!busy || !!pdf.waitFor;
   if (busy) {
@@ -818,14 +827,21 @@ function paintPdf() {
   }
 }
 
+const pdfFresh = (run) => !!(run && pdf.startedAt && run.startedAt && run.startedAt !== pdf.prevStarted);
+
 function pollPdf(delay = 10000) {
   clearTimeout(pdf.timer);
   pdf.timer = setTimeout(async () => {
     const dlg = $("[data-pdf-dialog]");
     if (!dlg || !dlg.open) return;
     try { pdf.setup = await api("menu-pdf"); } catch { /* try again next time */ }
+    if (pdf.startedAt && Date.now() - pdf.startedAt > 10 * 60000) {
+      pdf.startedAt = 0;
+      pdf.waitFor = "";
+      toast("The export is taking longer than usual. Check it on GitHub.", true);
+    }
     const run = pdf.setup && pdf.setup.lastRun;
-    const fresh = run && pdf.startedAt && Date.parse(run.startedAt) >= pdf.startedAt - 15000;
+    const fresh = pdfFresh(run);
     if (fresh && run.status === "completed") {
       if (run.conclusion === "success") pdf.waitFor = pdf.waitFor || (pdf.meta ? pdf.meta.exportedAt : "none");
       pdf.startedAt = 0;
@@ -856,9 +872,13 @@ async function exportPdf() {
   err.hidden = true;
   const go = $("[data-pdf-export]");
   go.disabled = true;
+  // A run is "ours" when it differs from the last run GitHub had before we pressed the button
+  // (comparing to GitHub's own times, not this device's clock).
+  const prevStarted = pdf.setup && pdf.setup.lastRun ? pdf.setup.lastRun.startedAt : "";
   try {
     await api("menu-pdf", { method: "POST" });
     pdf.startedAt = Date.now();
+    pdf.prevStarted = prevStarted;
     pdf.waitFor = "";
     paintPdf();
     pollPdf(8000);
@@ -1001,8 +1021,8 @@ main.addEventListener("input", (e) => {
   $$("[data-text-group]").forEach((g) => {
     let hits = 0;
     $$(".field", g).forEach((f) => {
-      const input = $("input, textarea", f);
-      const hay = (f.textContent + " " + input.value + " " + input.placeholder).toLowerCase();
+      const inputs = $$("input, textarea", f);
+      const hay = (f.textContent + " " + inputs.map((i) => i.value + " " + i.placeholder).join(" ")).toLowerCase();
       const hit = !q || hay.includes(q);
       f.hidden = !hit;
       if (hit) hits++;
@@ -1034,7 +1054,7 @@ function previewVars(t) {
   useFont(df);
   useFont(bf);
   const r = { soft: "14px", round: "22px", square: "5px" }[t.corners];
-  return `--p-brand:${t.brand};--p-accent:${t.accent};--p-soft:${t.soft};--p-bg:${t.background};--p-display:${df.stack};--p-dw:${df.weight || 700};--p-body:${bf.stack};--p-r:${r};--p-pill:${t.corners === "square" ? "6px" : "999px"}`;
+  return `--p-brand:${t.brand};--p-accent:${t.accent};--p-soft:${t.soft};--p-bg:${t.background};--p-display:${df.stack};--p-dw:${df.weight || 700};--p-body:${bf.stack};--p-hero:${t.heroFont === "display" ? df.stack : bf.stack};--p-hw:${t.heroFont === "display" ? df.weight || 700 : 700};--p-r:${r};--p-pill:${t.corners === "square" ? "6px" : "999px"}`;
 }
 
 function themeWarnings(t) {
@@ -1101,6 +1121,7 @@ function renderTheme() {
             <div class="grid-2">
               <div class="field"><label for="f-display">Headlines</label><select id="f-display" data-bind="theme.displayFont">${Object.entries(DISPLAY_FONTS).map(([k, f]) => `<option value="${esc(k)}" ${t.displayFont === k ? "selected" : ""}>${esc(f.label)}</option>`).join("")}</select></div>
               <div class="field"><label for="f-body">Text</label><select id="f-body" data-bind="theme.bodyFont">${Object.entries(BODY_FONTS).map(([k, f]) => `<option value="${esc(k)}" ${t.bodyFont === k ? "selected" : ""}>${esc(f.label)}</option>`).join("")}</select></div>
+              <div class="field"><label for="f-hero-font">Home page headline</label><select id="f-hero-font" data-bind="theme.heroFont"><option value="body" ${t.heroFont !== "display" ? "selected" : ""}>Text font (bold)</option><option value="display" ${t.heroFont === "display" ? "selected" : ""}>Headline font</option></select><p class="help">The big title at the top of the home page.</p></div>
             </div>
           </div>
           <div class="section">
@@ -1368,6 +1389,10 @@ document.addEventListener("click", async (e) => {
     if (isDirty() && !confirmLeave()) return;
     await fetch("/api/admin/logout", { method: "POST" });
     state.published = state.draft = null;
+    stopPolling();
+    // Customer details don't stay in memory after signing out.
+    Object.assign(state.orders, { list: [], drafts: [], summary: null, byStatus: null, selected: null, draft: null, fetchedAt: 0, draftsAt: 0, newestId: null });
+    document.title = "Crepe Beirut Admin";
     showView("login");
     return;
   }
@@ -1517,8 +1542,10 @@ document.addEventListener("click", async (e) => {
   if (d.onePrice != null) { const it = cat.items[Number(d.onePrice)]; it.price = it.options[0] ? it.options[0].price : 0; it.options = []; rerender(); return; }
   if (d.addSize != null) { const it = cat.items[Number(d.addSize)]; it.options.push({ label: "", price: 0 }); rerender(); return; }
   if (d.delSize != null) {
-    const it = cat.items[Number(d.item)]; it.options.splice(Number(d.delSize), 1);
-    if (!it.options.length) { it.price = 0; }
+    const it = cat.items[Number(d.item)];
+    const [removed] = it.options.splice(Number(d.delSize), 1);
+    // Removing the last size keeps its price as the item's price.
+    if (!it.options.length) it.price = removed ? removed.price : 0;
     rerender(); return;
   }
   // Extras
@@ -1591,6 +1618,7 @@ function validate(c) {
     for (const it of cat.items) {
       if (!it.name.trim()) return `An item in “${cat.name}” has no name.`;
       if (it.options.some((o) => !o.label.trim())) return `“${it.name}” has a size without a name.`;
+      if (it.available && !(it.options.length ? it.options.every((o) => o.price > 0) : it.price > 0)) return `“${it.name}” in “${cat.name}” has no price yet. Add a price or mark it sold out.`;
     }
   }
   if (c.settings.showUsd && !(c.settings.usdRate > 0)) return "Add the exchange rate (L.L. per $1) to show prices in US dollars, or switch dollar prices off.";
@@ -1614,6 +1642,23 @@ async function publish() {
     rerender();
     toast("Published. The website shows your changes now." + (data.removedImages ? ` ${data.removedImages} old ${data.removedImages === 1 ? "picture" : "pictures"} removed.` : ""));
   } catch (e) {
+    if (e.status === 409 && e.data && e.data.code === "conflict") {
+      btn.disabled = false;
+      btn.textContent = "Publish changes";
+      try {
+        const latest = await api("content");
+        if (window.confirm("Someone else published changes while you were editing.\n\nOK: publish your version (it replaces theirs).\nCancel: load their version (your unpublished changes are dropped).")) {
+          state.baseUpdatedAt = latest.updatedAt;
+          return publish();
+        }
+        state.published = latest.content;
+        state.draft = clone(latest.content);
+        state.baseUpdatedAt = latest.updatedAt;
+        rerender();
+        toast("Loaded the latest published version.");
+      } catch (err) { toast(err.message, true); }
+      return;
+    }
     if (e.status !== 401) toast(e.message, true);
   } finally {
     btn.disabled = false;
@@ -1651,9 +1696,12 @@ $("[data-login]").addEventListener("submit", async (e) => {
 
 async function enterApp() {
   const data = await api("content");
+  // Signed out by an expired session with unpublished edits: keep them.
+  const keep = state.draft && isDirty() ? { draft: state.draft, base: state.baseUpdatedAt } : null;
   state.published = data.content;
-  state.draft = clone(data.content);
-  state.baseUpdatedAt = data.updatedAt;
+  state.draft = keep ? keep.draft : clone(data.content);
+  state.baseUpdatedAt = keep ? keep.base : data.updatedAt;
+  if (keep) setTimeout(() => toast("Signed in again. Your unpublished changes are still here."), 300);
   state.orders.fetchedAt = 0;
   state.orders.newestId = null;
   showView("app");

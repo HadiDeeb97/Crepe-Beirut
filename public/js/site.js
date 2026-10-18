@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText, selfHostedCss, fromGoogle
-} from "./shared.js?v=202610181731";
+} from "./shared.js?v=202610181750";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -27,9 +27,11 @@ const itemsWord = (n) => n + " " + T(n === 1 ? "itemOne" : "itemMany");
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610181731").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610181750").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
+if (!Array.isArray(cart)) cart = [];
+let sending = false;   // an order is on its way: no second send, no bag changes
 let lastMessage = "";
 const CURRENCY_KEY = "crepe-beirut-currency";
 let currency = load(CURRENCY_KEY, null);
@@ -166,6 +168,7 @@ function applyTheme() {
   root.setProperty("--display-weight", String(df.weight || 700));
   root.setProperty("--body", bf.stack);
   document.documentElement.dataset.corners = t.corners;
+  document.documentElement.dataset.heroFont = t.heroFont === "display" ? "display" : "body";
   document.documentElement.dataset.pattern = t.pattern;
   // Light or dark: the visitor's own pick (if the admin shows the button), else the admin's default
   // (light, dark, or follow the visitor's device).
@@ -181,8 +184,8 @@ function applyTheme() {
   const label = T(dark ? "modeLight" : "modeDark");
   btn.setAttribute("aria-label", label);
   btn.title = label;
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = t.background;
+  // The phone's status bar follows light or dark mode.
+  $$('meta[name="theme-color"]').forEach((m) => { m.content = dark ? "#1B120B" : t.background; m.removeAttribute("media"); });
 }
 
 function renderHeroMedia() {
@@ -474,7 +477,9 @@ $("[data-sheet-body]").addEventListener("change", (e) => {
   const max = group ? Number(group.dataset.max) : 0;
   if (box && box.checked && max && $$('input[name="extra"]:checked', group).length > max) {
     box.checked = false;
-    toast(T("toastMax", { n: max }));
+    // Said inside the pop-up (a toast would sit behind it).
+    const hint = $(".hint", group);
+    if (hint) { hint.textContent = "· " + T("toastMax", { n: max }); hint.classList.add("warn"); hint.setAttribute("role", "status"); }
   }
   updateSheet();
 });
@@ -502,6 +507,10 @@ document.addEventListener("click", (e) => {
 const keyOf = (l) => [l.itemId, l.option, l.choice, [...(l.extras || [])].sort().join("+"), l.note].join("|");
 
 function addLine(line, from) {
+  if (sending) return;
+  // Adding something new after an order was sent starts a fresh order.
+  const sentPanel = $("[data-sent]");
+  if (!sentPanel.hidden) sentPanel.hidden = true;
   const k = keyOf(line);
   const found = cart.find((l) => keyOf(l) === k);
   if (found) found.qty = Math.min(MAX_QTY, found.qty + line.qty); else cart.push(line);
@@ -543,7 +552,7 @@ function renderCartNotices() {
   $("[data-paused-text]").textContent = s.pausedMessage;
   $("[data-closed-note]").hidden = paused || openNow !== false || !cart.length;
   const send = $("[data-send]");
-  if (send) send.disabled = paused;
+  if (send) send.disabled = paused || sending;
 }
 
 function renderCart() {
@@ -596,7 +605,7 @@ function renderCart() {
 
 $("[data-lines]").addEventListener("click", (e) => {
   const b = e.target.closest("button");
-  if (!b) return;
+  if (!b || sending) return;
   if (b.dataset.inc != null) { const l = cart[+b.dataset.inc]; l.qty = Math.min(MAX_QTY, l.qty + 1); }
   else if (b.dataset.dec != null) { const i = +b.dataset.dec; cart[i].qty -= 1; if (cart[i].qty < 1) cart.splice(i, 1); }
   else if (b.dataset.remove != null) cart.splice(+b.dataset.remove, 1);
@@ -639,7 +648,9 @@ function draftId() {
 
 function queueDraft(now = false) {
   clearTimeout(draftTimer);
-  if (!ordersEnabled) return;
+  if (!ordersEnabled || sending) return;
+  // Leaving the page: send right away (a timer would never run), keepalive finishes it.
+  if (now) { sendDraft(); return; }
   draftTimer = setTimeout(sendDraft, now ? 0 : 1500);
 }
 
@@ -710,6 +721,7 @@ function showError(msg) {
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (sending) return;
   const c = {
     type: orderType(),
     name: form.elements.name.value.trim(),
@@ -738,8 +750,10 @@ form.addEventListener("submit", async (e) => {
   let win = null;
   try { win = window.open("about:blank", "_blank"); } catch { win = null; }
   const sendBtn = $("[data-send]");
+  sending = true;
   sendBtn.disabled = true;
   $("[data-send-label]").textContent = T("sendPreparing");
+  try {
 
   let number = "";
   let t = totals();
@@ -752,8 +766,9 @@ form.addEventListener("submit", async (e) => {
       number = res.data.number;
       lines = res.data.lines.map((l) => ({ ok: true, ...l }));
       t = { sub: res.data.subtotal, fee: res.data.fee, total: res.data.total, count: t.count };
-    } else if (res.status === 409 || res.status === 400) {
+    } else if (res.status === 409 || res.status === 400 || res.status === 429) {
       if (win) win.close();
+      sending = false;
       sendBtn.disabled = false;
       $("[data-send-label]").textContent = T("sendButton");
       showError(res.data.error || T("errGeneric"));
@@ -764,13 +779,16 @@ form.addEventListener("submit", async (e) => {
       }
       return;
     }
-    // Network or server trouble: still send the order on WhatsApp, just without a number.
+    // Network or server trouble: still send the order on WhatsApp, just without a number. The
+    // unfinished order stays saved for the shop (emptying the bag below mustn't delete it).
+    else { clearTimeout(draftTimer); draftSent = ""; }
   }
 
   lastMessage = buildMessage(c, number, lines, t);
   const url = "https://wa.me/" + content.settings.whatsappNumber + "?text=" + encodeURIComponent(lastMessage);
   if (win) { try { win.opener = null; win.location.href = url; } catch { win = null; } }
 
+  sending = false;
   sendBtn.disabled = false;
   $("[data-send-label]").textContent = T("sendButton");
   $("[data-sent-link]").href = url;
@@ -782,6 +800,9 @@ form.addEventListener("submit", async (e) => {
   commit();
   $("[data-ticket] .ticket-card").scrollTop = 0;
   if (!win) $("[data-sent-link]").focus();
+  } finally {
+    if (sending) { sending = false; sendBtn.disabled = !content.settings.orderingOpen; $("[data-send-label]").textContent = T("sendButton"); }
+  }
 });
 
 $("[data-new-order]").addEventListener("click", () => { $("[data-sent]").hidden = true; renderCart(); });
@@ -797,20 +818,29 @@ $("[data-copy]").addEventListener("click", () => {
 const ticket = $("[data-ticket]");
 const scrim = $("[data-scrim]");
 const mq = window.matchMedia("(max-width: 1023px)");
+let orderOpener = null;
+// While the order drawer covers the screen, the page behind can't be reached by Tab or VoiceOver.
+const behindDrawer = () => $$(".head, main > *:not(#menu), .menu-main, .rail, .foot, .bag-bar, .announce");
 function openOrder() {
   if (mq.matches) {
+    orderOpener = document.activeElement;
     ticket.classList.add("open");
     scrim.hidden = false;
     document.body.style.overflow = "hidden";
+    behindDrawer().forEach((el) => (el.inert = true));
     $("[data-close-order]").focus();
   } else {
     ticket.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 function closeOrder() {
+  const wasOpen = ticket.classList.contains("open");
   ticket.classList.remove("open");
   scrim.hidden = true;
   document.body.style.overflow = "";
+  behindDrawer().forEach((el) => (el.inert = false));
+  if (wasOpen && orderOpener && orderOpener.focus) orderOpener.focus();
+  orderOpener = null;
 }
 $$("[data-open-order]").forEach((b) => b.addEventListener("click", openOrder));
 $("[data-close-order]").addEventListener("click", closeOrder);
@@ -868,6 +898,7 @@ function toast(msg) {
 
 function renderAll() {
   cart = cart.filter((l) => l && l.itemId && l.qty > 0 && index.items.has(l.itemId));
+  for (const l of cart) l.qty = Math.min(MAX_QTY, Math.floor(l.qty));
   // Each part draws on its own: if one ever fails, the rest of the page still shows.
   for (const step of [applyTheme, renderHeroMedia, renderCurrency, renderTexts, renderFavs, renderMenu, syncType, renderBadges]) {
     try { step(); } catch (e) { console.error("Crepe Beirut: " + step.name + " failed", e); }
@@ -1140,7 +1171,7 @@ if (motionOK) {
 /** A little picture flies from the + button into the order bag. */
 function flyToBag(fromRect, src) {
   if (!motionOK) return Promise.resolve();
-  const targets = [$(".bag-bar"), $(".bag-btn")].filter((el) => el && el.offsetParent !== null && !el.hidden);
+  const targets = [$(".bag-bar"), $(".bag-btn")].filter((el) => el && !el.hidden && getComputedStyle(el).display !== "none" && el.getClientRects().length);
   const target = targets[0];
   if (!target) return Promise.resolve();
   const to = target.getBoundingClientRect();

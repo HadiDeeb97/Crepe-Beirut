@@ -1,12 +1,13 @@
 // POST /api/orders: save an order from the website before the customer sends it on WhatsApp.
 // Prices are recalculated here from the live menu; prices sent by the browser are ignored.
-import { bumpDraftsVersion, bumpOrdersVersion, db, fail, json, loadContent, readJson, sameOrigin } from "../../lib/server.js";
+import { bumpDraftsVersion, bumpOrdersVersion, db, fail, json, loadContent, readJson, sameOrigin, tooMany } from "../../lib/server.js";
 import { indexContent, priceLine, orderNumber, MAX_LINES } from "../../public/js/shared.js";
 
 const clip = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
 
 export async function onRequestPost({ request, env }) {
   if (!sameOrigin(request)) return fail(403, "This request came from another site.");
+  if (tooMany("order", request, 15, 60000)) return fail(429, "Too many orders from this device in a minute. Please wait a moment, or message us on WhatsApp.", { code: "slow-down" });
   const d = await db(env);
   if (!d) return fail(503, "Order saving is not set up yet.");
 
@@ -27,6 +28,11 @@ export async function onRequestPost({ request, env }) {
   if (type === "Delivery" && !address) return fail(400, "Please add a delivery address.");
   if (!Array.isArray(body.lines) || !body.lines.length) return fail(400, "Your order is empty.");
   if (body.lines.length > MAX_LINES) return fail(400, "That order has too many lines. Please message us on WhatsApp.");
+
+  // The same phone number can't place more than 5 orders in 10 minutes (stops floods of fake orders).
+  const recent = new Date(Date.now() - 10 * 60000).toISOString();
+  const samePhone = await d.prepare("SELECT COUNT(*) AS n FROM orders WHERE created_at > ? AND phone = ?").bind(recent, phone).first();
+  if (samePhone && samePhone.n >= 5) return fail(429, "We already have several orders from this number. Please message us on WhatsApp.", { code: "slow-down" });
 
   const index = indexContent(content);
   const priced = body.lines.map((l) => priceLine(index, l));

@@ -39,9 +39,13 @@ export async function onRequestPut({ request, env }) {
   }
 
   const now = new Date().toISOString();
-  await d.prepare(
-    "INSERT INTO content (key, value, updated_at) VALUES ('site', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at"
-  ).bind(JSON.stringify(content), now).run();
+  // The write only happens if nobody published in between (checked in the same statement).
+  const write = current
+    ? await d.prepare("UPDATE content SET value = ?, updated_at = ? WHERE key = 'site' AND updated_at = ?").bind(JSON.stringify(content), now, current.updated_at).run()
+    : await d.prepare("INSERT INTO content (key, value, updated_at) VALUES ('site', ?, ?) ON CONFLICT(key) DO NOTHING").bind(JSON.stringify(content), now).run();
+  if (!write.meta || !write.meta.changes) {
+    return fail(409, "Someone else published changes after you opened this page. Reload to get their version, then make your edits again.", { code: "conflict" });
+  }
 
   forgetCachedContent();
 

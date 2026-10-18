@@ -4,14 +4,17 @@ import { orderNumber } from "../../../../public/js/shared.js";
 import { scopeWhere } from "./clear.js";
 
 const cell = (v) => {
-  const s = String(v == null ? "" : v);
+  let s = String(v == null ? "" : v);
+  // Customers type names and notes: a leading = + - @ would run as a formula in Excel or Sheets.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 };
 
 export async function onRequestGet({ request, env }) {
   const d = await db(env);
   if (!d) return fail(503, "The database is not connected.");
-  const scope = new URL(request.url).searchParams.get("scope") || "all";
+  const asked = new URL(request.url).searchParams.get("scope");
+  const scope = ["all", "finished", "older"].includes(asked) ? asked : "all";
   const where = (await scopeWhere(scope, env)) || { sql: "1 = 1", args: [] };
   const { content } = await loadContent(env);
   const tz = content.settings.timezone || "Asia/Beirut";

@@ -58,7 +58,7 @@ export function selfHostedCss(spec) {
 export const fromGoogle = (spec) => !!(spec && !spec.builtin && !spec.files && spec.css);
 
 export const DEFAULT_THEME = {
-  preset: "original", ...THEME_PRESETS.original, displayFont: "Fraunces", bodyFont: "Figtree", corners: "soft", pattern: "stripes", mode: "light", allowToggle: true
+  preset: "original", ...THEME_PRESETS.original, displayFont: "Fraunces", bodyFont: "Figtree", heroFont: "body", corners: "soft", pattern: "stripes", mode: "light", allowToggle: true
 };
 delete DEFAULT_THEME.label;
 
@@ -314,8 +314,10 @@ export function priceLine(index, line) {
 
   let option = "";
   if (item.options && item.options.length) {
-    const o = item.options.find((o) => o.label === line.option) || item.options[0];
-    option = o.label;
+    const found = item.options.find((o) => o.label === line.option);
+    // A size that was renamed or removed since it went in the bag: the customer must choose again.
+    if (line.option && !found) return { ok: false, reason: "changed", name: item.name + " (" + line.option + ")" };
+    option = (found || item.options[0]).label;
   }
   let choice = "";
   if (cat.choice && cat.choice.values && cat.choice.values.length) {
@@ -424,7 +426,11 @@ const num = (v) => {
   return Number.isFinite(n) && n >= 0 ? Math.min(n, 1e10) : 0;
 };
 const bool = (v, d = false) => (typeof v === "boolean" ? v : d);
-const hhmm = (v) => (/^\d{1,2}:\d{2}$/.test(v || "") ? v : "");
+const hhmm = (v) => (/^([01]?\d|2[0-3]):[0-5]\d$/.test(v || "") ? v : "");
+const own = (obj, k) => typeof k === "string" && Object.prototype.hasOwnProperty.call(obj, k);
+function timeZoneOr(tz, fallback) {
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return tz; } catch { return fallback; }
+}
 
 function uniqueId(base, used) {
   let id = base, n = 2;
@@ -458,7 +464,7 @@ export function normalizeContent(raw, defaults) {
     defaultCurrency: s.defaultCurrency === "usd" ? "usd" : "lbp",
     orderingOpen: bool(s.orderingOpen, true),
     pausedMessage: str(s.pausedMessage, 240) || ds.pausedMessage,
-    timezone: str(s.timezone || ds.timezone, 60),
+    timezone: timeZoneOr(str(s.timezone || ds.timezone, 60), ds.timezone),
     hours: DAYS.map((d) => {
       const h = hoursIn.find((x) => x && x.day === d) || {};
       return { day: d, open: hhmm(h.open), close: hhmm(h.close), closed: bool(h.closed) };
@@ -525,13 +531,15 @@ export function normalizeContent(raw, defaults) {
   const th = raw.theme || {};
   const hex = (v, d) => (/^#[0-9a-fA-F]{6}$/.test(v || "") ? v.toUpperCase() : d);
   const theme = {
-    preset: THEME_PRESETS[th.preset] ? th.preset : "custom",
+    preset: own(THEME_PRESETS, th.preset) ? th.preset : "custom",
     brand: hex(th.brand, DEFAULT_THEME.brand),
     accent: hex(th.accent, DEFAULT_THEME.accent),
     soft: hex(th.soft, DEFAULT_THEME.soft),
     background: hex(th.background, DEFAULT_THEME.background),
-    displayFont: DISPLAY_FONTS[th.displayFont] ? th.displayFont : DEFAULT_THEME.displayFont,
-    bodyFont: BODY_FONTS[th.bodyFont] ? th.bodyFont : DEFAULT_THEME.bodyFont,
+    displayFont: own(DISPLAY_FONTS, th.displayFont) ? th.displayFont : DEFAULT_THEME.displayFont,
+    bodyFont: own(BODY_FONTS, th.bodyFont) ? th.bodyFont : DEFAULT_THEME.bodyFont,
+    // Which of the two fonts the big home page headline uses.
+    heroFont: th.heroFont === "display" ? "display" : "body",
     corners: ["soft", "round", "square"].includes(th.corners) ? th.corners : DEFAULT_THEME.corners,
     pattern: ["stripes", "grid", "plain"].includes(th.pattern) ? th.pattern : DEFAULT_THEME.pattern,
     mode: ["light", "auto", "dark"].includes(th.mode) ? th.mode : DEFAULT_THEME.mode,
