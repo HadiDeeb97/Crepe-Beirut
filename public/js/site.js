@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText, selfHostedCss, fromGoogle
-} from "./shared.js?v=202610181753";
+} from "./shared.js?v=202610181756";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -27,7 +27,7 @@ const itemsWord = (n) => n + " " + T(n === 1 ? "itemOne" : "itemMany");
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610181753").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610181756").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 if (!Array.isArray(cart)) cart = [];
@@ -102,6 +102,21 @@ async function loadExport() {
     return null;
   }
 }
+
+/* The home headline stays on one line: measure it at the full headline size and shrink it to fit. */
+function fitHeroTitle() {
+  const h = document.getElementById("hero-title");
+  if (!h || !h.parentElement) return;
+  h.style.setProperty("--hero-chars", Math.max(8, h.textContent.trim().length));
+  h.style.fontSize = "var(--fs-hero)";
+  const max = parseFloat(getComputedStyle(h).fontSize);
+  const avail = h.parentElement.clientWidth, need = h.scrollWidth;
+  if (!avail || !need) { h.style.fontSize = ""; return; }
+  h.style.fontSize = Math.min(max, (max * avail) / need * 0.99).toFixed(2) + "px";
+}
+let fitTick = 0;
+window.addEventListener("resize", () => { cancelAnimationFrame(fitTick); fitTick = requestAnimationFrame(fitHeroTitle); });
+if (document.fonts) document.fonts.ready.then(fitHeroTitle);
 
 function renderOfflineNote(exportedAt) {
   const note = $("[data-offline-note]");
@@ -218,6 +233,7 @@ function renderTexts() {
     el.innerHTML = String(t[el.dataset.textParas] || "").split(/\n\s*\n/).filter(Boolean).map((p) => "<p>" + esc(p.trim()) + "</p>").join("");
   });
   $$("[data-text-ph]").forEach((el) => (el.placeholder = T(el.dataset.textPh)));
+  fitHeroTitle();
   const seal = $("[data-seal]");
   if (seal) seal.textContent = (T("tagline").toUpperCase() + " · ").repeat(2);
   const info = $("[data-sent-info]");

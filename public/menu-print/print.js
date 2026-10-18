@@ -10,7 +10,7 @@
  * row doesn't fit. tools/export-menu-pdf.cjs prints this page to
  * public/menu/menu.pdf; it waits for window.__menuReady.
  */
-import { imageUrl, DISPLAY_FONTS, BODY_FONTS, fontFamily, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610181753";
+import { imageUrl, DISPLAY_FONTS, BODY_FONTS, fontFamily, selfHostedCss, fromGoogle } from "../js/shared.js?v=202610181756";
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -38,7 +38,7 @@ async function getContent() {
       if (data.content) return data.content;
     }
   } catch { /* fall back to the built-in menu */ }
-  const m = await import("../js/defaults.js?v=202610181753");
+  const m = await import("../js/defaults.js?v=202610181756");
   return m.DEFAULT_CONTENT;
 }
 

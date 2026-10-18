@@ -219,9 +219,15 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* ---------- Hero ---------- */
 .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(28px, 5vw, 72px); align-items: center; padding-block: clamp(28px, 5vw, 64px) clamp(40px, 6vw, 88px); }
-.hero-copy { display: grid; gap: 22px; min-width: 0; }
+.hero-copy { display: grid; gap: 22px; min-width: 0; container-type: inline-size; }
 /* The home page headline uses the text font (bold) or the headline font: the admin picks (Theme → Fonts). */
-.hero h1 { font-family: var(--body); font-variation-settings: normal; font-size: var(--fs-hero); font-weight: var(--w-bold); letter-spacing: -.025em; }
+/* One line, in capitals: the size shrinks to fit the width (first guessed from the number of letters,
+   then measured exactly by site.js fitHeroTitle), never bigger than the usual headline size. */
+.hero h1 {
+  font-family: var(--body); font-variation-settings: normal; font-weight: var(--w-bold);
+  text-transform: uppercase; white-space: nowrap; letter-spacing: 0; line-height: 1.05;
+  font-size: min(var(--fs-hero), calc(100cqi / (var(--hero-chars, 26) * .66)));
+}
 :root[data-hero-font="display"] .hero h1 { font-family: var(--display); font-variation-settings: "SOFT" 100; font-weight: var(--display-weight); }
 .hero-lede { font-size: var(--fs-lg); color: var(--ink-2); max-width: 32em; }
 .hero-cta { display: flex; flex-wrap: wrap; gap: 12px; }
