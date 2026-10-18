@@ -586,8 +586,22 @@ button, input, textarea { font: inherit; color: inherit; }
 .fav:hover .fav-pic.photo img { transform: scale(1.04); }
 .item.has-pic { grid-template-columns: 60px minmax(0, 1fr) auto auto; }
 .item-pic { width: 60px; height: 60px; border-radius: var(--r-sm); object-fit: cover; background: var(--tint); }
-.sheet-hero.photo { height: 230px; }
-.sheet-hero.photo img { width: 100%; height: 100%; max-width: none; object-fit: cover; filter: none; }
+/* A dish photo fills the top of the pop-up, cropped to the frame so it never runs into the text. */
+.sheet-hero { overflow: hidden; }
+.sheet-hero.photo { height: 240px; background: var(--tint); }
+.sheet-hero.photo img { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; object-fit: cover; filter: none; }
+.sheet-hero.photo::before {
+  content: ""; position: absolute; inset: 0 0 auto; height: 76px; z-index: 1; pointer-events: none;
+  background: linear-gradient(rgba(20, 13, 8, .32), transparent);
+}
+.sheet-hero.photo .sheet-close { z-index: 2; background: rgba(20, 13, 8, .5); color: #fff; box-shadow: none; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.sheet-zoom { display: none; }
+.sheet-hero.photo .sheet-zoom {
+  position: absolute; right: 12px; bottom: 12px; z-index: 2; width: 34px; height: 34px; display: grid; place-items: center;
+  border-radius: 50%; background: rgba(20, 13, 8, .5); color: #fff; pointer-events: none;
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+}
+.sheet-hero.photo .sheet-zoom .ico { width: 17px; height: 17px; }
 .seal-core.has-photo { overflow: hidden; }
 .seal-core.has-photo svg { display: none; }
 .seal-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
@@ -680,7 +694,7 @@ button, input, textarea { font: inherit; color: inherit; }
   .foot-nav { flex-wrap: wrap; justify-content: center; gap: 12px 22px; }
   .sheet { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: var(--r-lg) var(--r-lg) 0 0; max-height: 86vh; max-height: 92svh; }
   .sheet-hero { height: 120px; }
-  .sheet-hero.photo { height: 190px; }
+  .sheet-hero.photo { height: 210px; }
   .sheet-hero img { height: 100px; }
 }
 @media (max-width: 520px) {
@@ -711,7 +725,8 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* Short screens (small phones, landscape): a smaller picture leaves room for the extras. */
 @media (max-height: 700px) {
-  .sheet-hero, .sheet-hero.photo { height: 96px; }
+  .sheet-hero { height: 96px; }
+  .sheet-hero.photo { height: 160px; }
   .sheet-hero img { height: 80px; }
   .sheet-head { padding-top: 12px; }
 }
