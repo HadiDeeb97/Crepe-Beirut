@@ -672,3 +672,16 @@ input[type="range"][data-hero-zoom] { width: 100%; accent-color: var(--brand); }
   .arr-name { flex-basis: calc(100% - 90px); }
   .arr-grip { display: none; }
 }
+
+/* Website icon */
+.icon-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.icon-previews { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.icon-big { width: 96px; height: 96px; display: grid; place-items: center; border-radius: 14px; border: 1px dashed var(--line);
+  background: repeating-conic-gradient(var(--tint) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
+.icon-big img { width: 80px; height: 80px; object-fit: contain; }
+.icon-tab { display: flex; align-items: center; gap: 8px; padding: 7px 12px; border-radius: 10px 10px 0 0; background: var(--tint); font-size: 12.5px; min-width: 150px; }
+.icon-tab img { width: 16px; height: 16px; }
+.icon-tab i { margin-left: auto; font-style: normal; color: var(--ink-2); }
+.icon-home { display: grid; justify-items: center; gap: 4px; font-size: 11px; color: var(--ink-2); }
+.icon-home img { width: 52px; height: 52px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0, 0, 0, .18); }
+.icon-status { font-size: 13px; }

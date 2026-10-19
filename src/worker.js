@@ -22,7 +22,7 @@ import * as image from "../functions/api/images/[id].js";
 import * as adminImages from "../functions/api/admin/images.js";
 import * as adminMenuPdf from "../functions/api/admin/menu-pdf.js";
 import { fail, isDailyLimitError, loadContent } from "../lib/server.js";
-import { robotsTxt, siteOrigin, sitemapXml } from "../lib/seo.js";
+import { manifestJson, robotsTxt, siteOrigin, sitemapXml } from "../lib/seo.js";
 import { renderHome } from "../lib/page.js";
 
 const ROUTES = [
@@ -57,6 +57,11 @@ export default {
       const asset = await env.ASSETS.fetch(request);
       if (request.method !== "GET" || !asset.ok) return asset;
       return renderHome(request, env, asset);
+    }
+    if (path === "/site.webmanifest") {
+      let data = null;
+      try { data = await loadContent(env, { cached: true }); } catch { /* the built-in icons */ }
+      return new Response(manifestJson(data && data.content), { headers: { "content-type": "application/manifest+json", "cache-control": "public, max-age=3600" } });
     }
     if (path === "/robots.txt" || path === "/sitemap.xml") {
       let data = null;

@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle, imageIdsIn } from "../js/shared.js?v=202610181757";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle, imageIdsIn, ICON_SIZES } from "../js/shared.js?v=202610192029";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -13,7 +13,7 @@ const PICTURES = ["crepe", "pancakes", "waffle", "spreader", "iced-cup", "shake"
 /* ---------- Picture uploads ---------- */
 
 // Longest side in pixels after shrinking, per use.
-const MAX_SIDE = { item: 1000, section: 600, hero: 1600, about: 900 };
+const MAX_SIDE = { item: 1000, section: 600, hero: 1600, about: 900, icon: 1024 };
 const SMALL_SIDE = 480;
 
 function pickFile() {
@@ -1268,6 +1268,28 @@ function renderTheme() {
             ${sw("Show the drawings around it (logo sticker, spreader, pancake)", "media.heroDrawings")}
           </div>
           <div class="section">
+            <div class="section-title"><h2>Website icon</h2><p>The little picture in the browser tab, on phones' home screens and next to your site in Google. A square logo works best.</p></div>
+            <div class="icon-row">
+              <div class="icon-previews" data-icon-previews>
+                <div class="icon-big"><img data-icon-pv alt="Website icon preview" src="../assets/icon-512.png"></div>
+                <div class="icon-tab"><img data-icon-pv-small alt="" src="../assets/icon-192.png"><span>Crepe Beirut</span><i>×</i></div>
+                <div class="icon-home"><img data-icon-pv-home alt="" src="../assets/apple-touch-icon.png"><span>Crepe Beirut</span></div>
+              </div>
+              <div class="media-actions">
+                <button class="btn btn-line btn-sm" type="button" data-media-photo="icon">${ico("i-upload")}${m.icon ? "Change icon" : "Upload an icon"}</button>
+                ${m.icon ? `<button class="btn btn-ghost btn-sm" type="button" data-media-del="icon">Use the original CB badge</button>` : ""}
+                <span class="muted icon-status" data-icon-status></span>
+              </div>
+            </div>
+            ${m.icon ? `<div class="grid-2">
+              <div class="field"><span class="label">Shape</span>${seg("media.iconShape", m.iconShape, [["rounded", "Rounded square"], ["circle", "Circle"], ["none", "No frame"]])}
+                <p class="help">${{ rounded: "The picture fills a rounded square, like an app icon.", circle: "Shows the picture as a circle, good for a round logo.", none: "No frame or background, good for a cut-out logo with a see-through background." }[m.iconShape]}</p></div>
+              <div class="field"><label for="icon-zoom">Zoom <span class="muted" data-icon-zoom-val>${m.iconZoom}%</span></label>
+                <input id="icon-zoom" type="range" min="100" max="250" step="5" value="${m.iconZoom}" data-icon-zoom>
+                <p class="help">Zoom in to trim empty space around the picture.</p></div>
+            </div>` : ""}
+          </div>
+          <div class="section">
             <div class="section-title"><h2>About us picture</h2><p>Shown in the round frame next to your story.</p></div>
             ${picBox("about", m.about, "../assets/logo-badge.svg")}
           </div>
@@ -1299,7 +1321,105 @@ function renderTheme() {
       </aside>
     </div>`;
   paintThemeExtras();
+  paintIconPreview();
 }
+
+/* ---------- Website icon ----------
+   The uploaded picture is drawn in its shape and zoom into the PNG sizes browsers and phones use
+   (32 px tab, 180 px iPhone, 192/512 px Android and Google), and those are uploaded. The server
+   puts them in the page. They are remade whenever the picture, shape or zoom changes. */
+let iconImg = null, iconImgId = "", iconJob = null, iconTimer = 0, iconPending = false;
+
+async function loadIconImage(id) {
+  if (iconImg && iconImgId === id) return iconImg;
+  const img = new Image();
+  img.src = imageUrl(id);
+  await img.decode();
+  iconImg = img; iconImgId = id;
+  return img;
+}
+
+function drawIcon(img, size, shape, zoom, background) {
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const g = c.getContext("2d");
+  g.imageSmoothingQuality = "high";
+  if (background) { g.fillStyle = background; g.fillRect(0, 0, size, size); }
+  g.save();
+  if (shape === "circle") { g.beginPath(); g.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2); g.clip(); }
+  else if (shape === "rounded") {
+    const r = size * 0.22;
+    g.beginPath();
+    g.moveTo(r, 0); g.arcTo(size, 0, size, size, r); g.arcTo(size, size, 0, size, r); g.arcTo(0, size, 0, 0, r); g.arcTo(0, 0, size, 0, r);
+    g.closePath(); g.clip();
+  }
+  // A framed icon is filled edge to edge (cover); "no frame" shows the whole picture (contain).
+  const fit = shape === "none" ? Math.min : Math.max;
+  const k = fit(size / img.naturalWidth, size / img.naturalHeight) * (zoom / 100);
+  const w = img.naturalWidth * k, h = img.naturalHeight * k;
+  g.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+  g.restore();
+  return c;
+}
+
+async function paintIconPreview() {
+  const m = state.draft.media;
+  const big = $("[data-icon-pv]");
+  if (!big || !m.icon) return;
+  try {
+    const img = await loadIconImage(m.icon);
+    big.src = drawIcon(img, 256, m.iconShape, m.iconZoom).toDataURL("image/png");
+    $("[data-icon-pv-small]").src = drawIcon(img, 64, m.iconShape, m.iconZoom).toDataURL("image/png");
+    $("[data-icon-pv-home]").src = drawIcon(img, 180, m.iconShape, m.iconZoom, state.draft.theme.background).toDataURL("image/png");
+  } catch { /* the picture couldn't be read; the upload step reports it */ }
+}
+
+function queueIconFiles(delay = 600) {
+  clearTimeout(iconTimer);
+  iconPending = true;
+  const st = $("[data-icon-status]");
+  if (st) st.textContent = "Preparing the icon…";
+  iconTimer = setTimeout(() => { iconPending = false; iconJob = makeIconFiles(); }, delay);
+}
+
+async function makeIconFiles() {
+  const m = state.draft.media;
+  const st = () => $("[data-icon-status]");
+  if (!m.icon) { m.iconFiles = {}; return; }
+  try {
+    const img = await loadIconImage(m.icon);
+    const files = {};
+    for (const [key, size] of Object.entries(ICON_SIZES)) {
+      // iPhones put their own rounded corners on a square, so that one gets the page colour behind it.
+      const c = drawIcon(img, size, m.iconShape, m.iconZoom, key === "s180" ? state.draft.theme.background : "");
+      const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+      const res = await fetch("/api/admin/images", { method: "POST", body: blob, headers: { "content-type": "image/png" }, credentials: "same-origin" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "The icon couldn't be saved.");
+      files[key] = data.id;
+    }
+    m.iconFiles = files;
+    updatePublishBar();
+    if (st()) st().textContent = "Icon ready. Publish to use it.";
+  } catch (e) {
+    if (st()) st().textContent = "";
+    toast(e.message || "The icon couldn't be made.", true);
+  } finally {
+    iconJob = null;
+  }
+}
+
+main.addEventListener("input", (e) => {
+  if (!e.target.matches("[data-icon-zoom]")) return;
+  state.draft.media.iconZoom = Number(e.target.value);
+  $("[data-icon-zoom-val]").textContent = e.target.value + "%";
+  paintIconPreview();
+  queueIconFiles();
+  updatePublishBar();
+});
+main.addEventListener("change", (e) => {
+  if (e.target.name === "media.iconShape") queueIconFiles(0);
+});
 
 main.addEventListener("input", (e) => {
   if (!e.target.matches("[data-hero-zoom]")) return;
@@ -1482,7 +1602,7 @@ async function convertPhotos(btn) {
     c.image = swap(c.image);
     for (const it of c.items) it.image = swap(it.image);
   }
-  if (d.media) { d.media.hero = swap(d.media.hero); d.media.about = swap(d.media.about); }
+  if (d.media) { d.media.hero = swap(d.media.hero); d.media.about = swap(d.media.about); d.media.icon = swap(d.media.icon); }
   const n = Object.keys(map).length;
   btn.disabled = false;
   btn.textContent = "Convert to WebP";
@@ -1622,10 +1742,17 @@ document.addEventListener("click", async (e) => {
   if ("catPhotoDel" in d) { cat.image = ""; rerender(); return; }
   if (d.mediaPhoto) {
     const id = await uploadImage(d.mediaPhoto);
-    if (id) { themeOf(); draft.media[d.mediaPhoto] = id; rerender(); }
+    if (id) {
+      themeOf(); draft.media[d.mediaPhoto] = id; rerender();
+      if (d.mediaPhoto === "icon") queueIconFiles(0);
+    }
     return;
   }
-  if (d.mediaDel) { themeOf(); draft.media[d.mediaDel] = ""; rerender(); return; }
+  if (d.mediaDel) {
+    themeOf(); draft.media[d.mediaDel] = "";
+    if (d.mediaDel === "icon") { clearTimeout(iconTimer); iconPending = false; draft.media.iconFiles = {}; }
+    rerender(); return;
+  }
   // Theme
   if (d.preset) {
     const p = THEME_PRESETS[d.preset];
@@ -1757,6 +1884,10 @@ function validate(c) {
 }
 
 async function publish() {
+  // An icon still being prepared finishes first, so the published icon matches the settings.
+  if (iconPending) { clearTimeout(iconTimer); iconPending = false; iconJob = makeIconFiles(); }
+  if (iconJob) await iconJob;
+  if (state.draft.media && state.draft.media.icon && !(state.draft.media.iconFiles && state.draft.media.iconFiles.s512)) await makeIconFiles();
   const problem = validate(state.draft);
   if (problem) { toast(problem, true); return; }
   const btn = $("[data-publish]");
@@ -1829,6 +1960,9 @@ async function enterApp() {
   state.published = data.content;
   state.draft = keep ? keep.draft : clone(data.content);
   state.baseUpdatedAt = keep ? keep.base : data.updatedAt;
+  // The admin's own tab shows the website icon too.
+  const pm = data.content.media || {};
+  if (pm.icon && pm.iconFiles && pm.iconFiles.s32) { const l = $('link[rel="icon"]'); if (l) { l.href = imageUrl(pm.iconFiles.s32); l.type = "image/png"; } }
   if (keep) setTimeout(() => toast("Signed in again. Your unpublished changes are still here."), 300);
   state.orders.fetchedAt = 0;
   state.orders.newestId = null;

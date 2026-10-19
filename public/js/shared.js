@@ -218,7 +218,10 @@ export function factsHtml(content) {
 }
 
 // heroShape: "rounded" (framed photo), "circle", or "none" (no frame, e.g. a cut-out logo); heroZoom in %.
-export const DEFAULT_MEDIA = { hero: "", heroDrawings: true, heroShape: "rounded", heroZoom: 100, about: "" };
+// icon: the website icon (browser tab, phone home screen, Google); iconFiles are the PNG sizes the
+// admin makes from it (s32 tab, s180 iPhone, s192/s512 Android and Google).
+export const DEFAULT_MEDIA = { hero: "", heroDrawings: true, heroShape: "rounded", heroZoom: 100, about: "", icon: "", iconShape: "rounded", iconZoom: 100, iconFiles: {} };
+export const ICON_SIZES = { s32: 32, s180: 180, s192: 192, s512: 512 };
 
 /** URL of an uploaded image (its id is the SHA-256 of the file). size "small" = the thumbnail copy. */
 export function imageUrl(id, size) {
@@ -236,6 +239,8 @@ export function imageIdsIn(content) {
   }
   add(content.media && content.media.hero);
   add(content.media && content.media.about);
+  add(content.media && content.media.icon);
+  for (const id of Object.values((content.media && content.media.iconFiles) || {})) add(id);
   return ids;
 }
 
@@ -552,8 +557,15 @@ export function normalizeContent(raw, defaults) {
     heroDrawings: bool(m.heroDrawings, true),
     heroShape: ["rounded", "circle", "none"].includes(m.heroShape) ? m.heroShape : "rounded",
     heroZoom: Math.max(100, Math.min(250, Math.round(Number(m.heroZoom) || 100))),
-    about: isImageId(m.about) ? m.about : ""
+    about: isImageId(m.about) ? m.about : "",
+    icon: isImageId(m.icon) ? m.icon : "",
+    iconShape: ["rounded", "circle", "none"].includes(m.iconShape) ? m.iconShape : "rounded",
+    iconZoom: Math.max(100, Math.min(250, Math.round(Number(m.iconZoom) || 100))),
+    iconFiles: {}
   };
+  if (media.icon && m.iconFiles && typeof m.iconFiles === "object") {
+    for (const k of Object.keys(ICON_SIZES)) if (isImageId(m.iconFiles[k])) media.iconFiles[k] = m.iconFiles[k];
+  }
   const facts = (Array.isArray(raw.facts) ? raw.facts : DEFAULT_FACTS).slice(0, 4).map((f) => ({
     kind: ["items", "extras", "text"].includes(f && f.kind) ? f.kind : "text",
     value: str(f && f.value, 24),

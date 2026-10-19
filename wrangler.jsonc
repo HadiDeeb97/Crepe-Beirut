@@ -8,7 +8,7 @@
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/", "/index.html", "/robots.txt", "/sitemap.xml"]
+    "run_worker_first": ["/api/*", "/", "/index.html", "/robots.txt", "/sitemap.xml", "/site.webmanifest"]
   },
   // The database for menu content and orders. On the first deploy Wrangler creates a D1
   // database named "crepe-beirut" (or reuses one with that name) and binds it as CREPE_DB.
