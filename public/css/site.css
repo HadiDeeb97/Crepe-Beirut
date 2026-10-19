@@ -590,6 +590,29 @@ button, input, textarea { font: inherit; color: inherit; }
 .hero-art.has-photo .hero-plate, .hero-art.has-photo .hero-crepe { display: none; }
 .hero-art.no-drawings .sticker, .hero-art.no-drawings .hero-spreader, .hero-art.no-drawings .hero-pancakes { display: none; }
 .hero-art.no-drawings { padding: 0; }
+/* Melting chocolate on the bottom of the frame: drips stretch down below it, let a drop go, and the drop fades as it falls. */
+.hero-frame { position: relative; }
+.hero-choc {
+  --choc: #3B2010; --choc-hi: #74462A;
+  position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none;
+  filter: drop-shadow(0 1.5px 1.5px rgb(30 15 5 / .3));
+}
+.hero-art.shape-none .hero-choc { display: none; }
+.choc-neck { transform-box: fill-box; transform-origin: 50% 0; animation: choc-stretch 6s var(--d) ease-in-out infinite both; }
+.choc-tip { animation: choc-tip 6s var(--d) ease-in-out infinite both; }
+.choc-drop { transform-box: fill-box; transform-origin: 50% 0; opacity: 0; animation: choc-fall 6s var(--d) ease-in infinite both; }
+@keyframes choc-stretch { 0%, 100% { transform: scaleY(.3); } 48%, 56% { transform: scaleY(1); } 70% { transform: scaleY(.45); } }
+@keyframes choc-tip { 0%, 100% { transform: translateY(calc(var(--l) * -.7px)); } 48%, 56% { transform: none; } 70% { transform: translateY(calc(var(--l) * -.55px)); } }
+@keyframes choc-fall {
+  0%, 50% { opacity: 0; transform: scale(.5); }
+  55% { opacity: 1; transform: translateY(1px) scale(1); }
+  60% { opacity: 1; transform: translateY(4px) scale(.95, 1.12); }
+  78%, 100% { opacity: 0; transform: translateY(26px) scale(.6, .9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .choc-neck, .choc-tip { animation: none; }
+  .choc-drop { display: none; }
+}
 .cat-badge.photo { overflow: hidden; }
 .cat-badge.photo img { inset: 0; width: 100%; height: 100%; object-fit: cover; filter: none; }
 .fav-pic.photo img { inset: 0; width: 100%; height: 100%; object-fit: cover; filter: none; }

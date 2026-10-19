@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
-  DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText, selfHostedCss, fromGoogle
-} from "./shared.js?v=202610192029";
+  DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText, selfHostedCss, fromGoogle, chocolateSvg
+} from "./shared.js?v=202610192040";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -27,7 +27,7 @@ const itemsWord = (n) => n + " " + T(n === 1 ? "itemOne" : "itemMany");
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610192029").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610192040").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 if (!Array.isArray(cart)) cart = [];
@@ -213,6 +213,10 @@ function renderHeroMedia() {
   const photo = $("[data-hero-photo]");
   photo.hidden = !m.hero;
   if (m.hero) photo.src = imageUrl(m.hero);
+  const choc = $("[data-hero-choc]"), shape = m.hero ? m.heroShape : "rounded";
+  const chocOn = !!m.heroChocolate && shape !== "none";
+  if (chocOn && choc.dataset.shape !== shape) { choc.innerHTML = chocolateSvg(shape); choc.dataset.shape = shape; }
+  choc.hidden = !chocOn;
   const about = $("[data-about-photo]");
   about.hidden = !m.about;
   if (m.about) about.src = imageUrl(m.about);

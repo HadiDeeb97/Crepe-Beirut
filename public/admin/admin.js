@@ -1,4 +1,4 @@
-import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle, imageIdsIn, ICON_SIZES } from "../js/shared.js?v=202610192029";
+import { money, orderNumber, waDigits, startOfShopDay, DAYS, DAY_NAMES, slug, imageUrl, THEME_PRESETS, DISPLAY_FONTS, BODY_FONTS, DEFAULT_THEME, DEFAULT_MEDIA, contrast, UI_TEXT_GROUPS, selfHostedCss, fromGoogle, imageIdsIn, ICON_SIZES, chocolateSvg } from "../js/shared.js?v=202610192040";
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -1266,6 +1266,8 @@ function renderTheme() {
                 <p class="help">Zoom in to trim empty space around the picture.</p></div>
             </div>` : ""}
             ${sw("Show the drawings around it (logo sticker, spreader, pancake)", "media.heroDrawings")}
+            ${sw("Melting chocolate on the frame (drips that fall and fade away)", "media.heroChocolate")}
+            ${m.heroChocolate && m.hero && m.heroShape === "none" ? `<p class="help">The chocolate needs a frame, so it isn't shown with "No frame".</p>` : ""}
           </div>
           <div class="section">
             <div class="section-title"><h2>Website icon</h2><p>The little picture in the browser tab, on phones' home screens and next to your site in Google. A square logo works best.</p></div>
@@ -1309,7 +1311,7 @@ function renderTheme() {
           <div class="tp-head"><svg class="tp-mark" aria-hidden="true"><use href="#cb-mark"></use></svg><span class="tp-pill">Your order <b>2</b></span></div>
           <div class="tp-hero">
             <div class="tp-copy"><p class="tp-kicker">Crepes · Waffles</p><h3 class="tp-h">${esc(state.draft.texts.heroTitle)}</h3><span class="tp-btn">Start your order</span></div>
-            <div class="tp-panel ${m.hero ? "shape-" + m.heroShape : ""}">${m.hero ? `<img src="${imageUrl(m.hero)}" alt="" style="transform:scale(${m.heroZoom / 100})">` : `<img class="tp-drawing" src="../assets/img/crepe.webp" alt="">`}</div>
+            <div class="tp-frame"><div class="tp-panel ${m.hero ? "shape-" + m.heroShape : ""}">${m.hero ? `<img src="${imageUrl(m.hero)}" alt="" style="transform:scale(${m.heroZoom / 100})">` : `<img class="tp-drawing" src="../assets/img/crepe.webp" alt="">`}</div>${m.heroChocolate && !(m.hero && m.heroShape === "none") ? `<svg class="hero-choc" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${chocolateSvg(m.hero ? m.heroShape : "rounded")}</svg>` : ""}</div>
           </div>
           <div class="tp-menu">
             <div class="tp-cat"><span class="tp-badge"><img src="../assets/img/crepe.webp" alt=""></span><b>Crepes</b></div>

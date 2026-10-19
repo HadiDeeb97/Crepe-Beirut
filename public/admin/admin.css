@@ -685,3 +685,22 @@ input[type="range"][data-hero-zoom] { width: 100%; accent-color: var(--brand); }
 .icon-home { display: grid; justify-items: center; gap: 4px; font-size: 11px; color: var(--ink-2); }
 .icon-home img { width: 52px; height: 52px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0, 0, 0, .18); }
 .icon-status { font-size: 13px; }
+
+/* Melting chocolate in the theme preview (same drawing and timing as the website) */
+.tp-frame { position: relative; }
+.tp-frame .hero-choc { overflow: visible; --choc: #3B2010; --choc-hi: #74462A; position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; filter: drop-shadow(0 1px 1px rgb(30 15 5 / .3)); }
+.choc-neck { transform-box: fill-box; transform-origin: 50% 0; animation: choc-stretch 6s var(--d) ease-in-out infinite both; }
+.choc-tip { animation: choc-tip 6s var(--d) ease-in-out infinite both; }
+.choc-drop { transform-box: fill-box; transform-origin: 50% 0; opacity: 0; animation: choc-fall 6s var(--d) ease-in infinite both; }
+@keyframes choc-stretch { 0%, 100% { transform: scaleY(.3); } 48%, 56% { transform: scaleY(1); } 70% { transform: scaleY(.45); } }
+@keyframes choc-tip { 0%, 100% { transform: translateY(calc(var(--l) * -.7px)); } 48%, 56% { transform: none; } 70% { transform: translateY(calc(var(--l) * -.55px)); } }
+@keyframes choc-fall {
+  0%, 50% { opacity: 0; transform: scale(.5); }
+  55% { opacity: 1; transform: translateY(1px) scale(1); }
+  60% { opacity: 1; transform: translateY(4px) scale(.95, 1.12); }
+  78%, 100% { opacity: 0; transform: translateY(26px) scale(.6, .9); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .choc-neck, .choc-tip { animation: none; }
+  .choc-drop { display: none; }
+}

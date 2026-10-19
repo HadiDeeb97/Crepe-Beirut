@@ -220,7 +220,7 @@ export function factsHtml(content) {
 // heroShape: "rounded" (framed photo), "circle", or "none" (no frame, e.g. a cut-out logo); heroZoom in %.
 // icon: the website icon (browser tab, phone home screen, Google); iconFiles are the PNG sizes the
 // admin makes from it (s32 tab, s180 iPhone, s192/s512 Android and Google).
-export const DEFAULT_MEDIA = { hero: "", heroDrawings: true, heroShape: "rounded", heroZoom: 100, about: "", icon: "", iconShape: "rounded", iconZoom: 100, iconFiles: {} };
+export const DEFAULT_MEDIA = { hero: "", heroDrawings: true, heroShape: "rounded", heroZoom: 100, heroChocolate: true, about: "", icon: "", iconShape: "rounded", iconZoom: 100, iconFiles: {} };
 export const ICON_SIZES = { s32: 32, s180: 180, s192: 192, s512: 512 };
 
 /** URL of an uploaded image (its id is the SHA-256 of the file). size "small" = the thumbnail copy. */
@@ -228,6 +228,48 @@ export function imageUrl(id, size) {
   return id ? "/api/images/" + id + (size === "small" ? "s" : "") : "";
 }
 export const isImageId = (v) => /^[a-f0-9]{64}$/.test(v || "");
+
+/* Melting chocolate on the home picture's frame: a glossy glaze along the top edge (following the
+   circle for a round frame) with drips that slowly stretch, let a drop go, and the drop falls and
+   fades. Drawn in a 100 × 100 box laid over the picture (the frame's own rounded corners or circle
+   trim it). The animation itself is in site.css (.hero-choc). */
+export function chocolateSvg(shape) {
+  const f = (n) => Math.round(n * 100) / 100;
+  let glaze, drips, shine;
+  if (shape === "circle") {
+    // Along the bottom of the circle, from 25° to 155°, thickest in the middle, with a wavy upper edge.
+    const a1 = 25, a2 = 155, pt = (deg, r) => [50 + r * Math.cos(deg * Math.PI / 180), 50 + r * Math.sin(deg * Math.PI / 180)];
+    const outer = [], inner = [];
+    for (let d = a1; d <= a2; d += 5) {
+      const taper = Math.sqrt(Math.sin(Math.PI * (d - a1) / (a2 - a1)));
+      outer.push(pt(d, 50.8));
+      inner.push(pt(d, 50.8 - taper * (5 + 1.3 * Math.sin(d * 0.35))));
+    }
+    glaze = "M" + outer.map(([x, y]) => f(x) + " " + f(y)).join("L") + "L" + inner.reverse().map(([x, y]) => f(x) + " " + f(y)).join("L") + "Z";
+    drips = [[54, 7, 0, 1.6], [73, 11, 1.7, 2], [90, 5, 3.3, 1.5], [107, 10, .9, 1.9], [126, 8, 2.6, 1.7]].map(([d, len, delay, r]) => {
+      const [x, y] = pt(d, 50.2);
+      return { x, y, len, delay, r };
+    });
+    shine = "M38 95.6Q44 96.9 50 97.1";
+  } else {
+    // Along the bottom edge, between the rounded corners, with a wavy upper edge.
+    const waves = [94.6, 95.8, 94.2, 95.6, 94.8, 96, 94.4];
+    let path = "M8 101C10 98 12 96 16 95.6";
+    waves.forEach((y, i) => { const x = 16 + i * 10; path += `Q${x + 2.5} ${f(y - .9)} ${x + 5} ${f(y)}Q${x + 7.5} ${f(y + .7)} ${x + 10} 95.6`; });
+    glaze = path + "C88 96 90 98 92 101Z";
+    drips = [[17, 7, 0, 1.6], [33, 11, 1.7, 2], [49, 5, 3.3, 1.5], [64, 10, .9, 1.9], [82, 8, 2.6, 1.7]].map(([x, len, delay, r]) => ({ x, y: 100.4, len, delay, r }));
+    shine = "M22 97.4Q30 96.9 38 97.3";
+  }
+  // Each drip: a neck that tapers from the glaze, a round tip at its end, and a drop that lets go of the tip.
+  return `<defs><linearGradient id="choc-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--choc-hi)"/><stop offset="1" stop-color="var(--choc)"/></linearGradient></defs>` +
+    `<path class="choc-glaze" d="${glaze}" fill="url(#choc-g)"/>` +
+    drips.map(({ x, y, len, delay, r }) => { const n = r * .62, top = r * 1.35;
+      return `<g class="choc-drip" style="--d:${delay}s;--l:${len + 1}">` +
+      `<path class="choc-neck" d="M${f(x - top)} ${f(y - 1)}Q${f(x - n)} ${f(y + 1)} ${f(x - n)} ${f(y + 3)}V${f(y + len)}H${f(x + n)}V${f(y + 3)}Q${f(x + n)} ${f(y + 1)} ${f(x + top)} ${f(y - 1)}Z" fill="url(#choc-g)"/>` +
+      `<circle class="choc-tip" cx="${f(x)}" cy="${f(y + len)}" r="${r}" fill="var(--choc)"/>` +
+      `<ellipse class="choc-drop" cx="${f(x)}" cy="${f(y + len + .4)}" rx="${f(r * .8)}" ry="${f(r)}" fill="var(--choc)"/></g>`; }).join("") +
+    `<path class="choc-shine" d="${shine}" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1" stroke-linecap="round"/>`;
+}
 
 /** Every uploaded image id the content uses (items, sections, home and About pictures). */
 export function imageIdsIn(content) {
@@ -557,6 +599,7 @@ export function normalizeContent(raw, defaults) {
     heroDrawings: bool(m.heroDrawings, true),
     heroShape: ["rounded", "circle", "none"].includes(m.heroShape) ? m.heroShape : "rounded",
     heroZoom: Math.max(100, Math.min(250, Math.round(Number(m.heroZoom) || 100))),
+    heroChocolate: bool(m.heroChocolate, true),
     about: isImageId(m.about) ? m.about : "",
     icon: isImageId(m.icon) ? m.icon : "",
     iconShape: ["rounded", "circle", "none"].includes(m.iconShape) ? m.iconShape : "rounded",
