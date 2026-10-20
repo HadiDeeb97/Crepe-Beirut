@@ -16,7 +16,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
-const SITE = (process.env.SITE_URL || "https://crepe-beirut.hadidib97.workers.dev").replace(/\/+$/, "");
+const SITE = (process.env.SITE_URL || "https://crepebeirut.com").replace(/\/+$/, "");
 const ROOT = path.join(__dirname, "..");
 const OUT = path.join(ROOT, "public", "menu");
 const FORCE = /^(1|true|yes)$/i.test(process.env.FORCE || "");

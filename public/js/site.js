@@ -1,7 +1,7 @@
 import {
   money, usd, indexContent, priceLine, minPrice, openState, hoursConfigured, formatTime,
   DAYS, DAY_NAMES, shopClock, MAX_QTY, imageUrl, factsHtml, extraGroupsFor, DEFAULT_THEME, DEFAULT_MEDIA, DISPLAY_FONTS, BODY_FONTS, uiText, selfHostedCss, fromGoogle, chocolateSvg
-} from "./shared.js?v=202610192040";
+} from "./shared.js?v=202610202151";
 
 const CART_KEY = "crepe-beirut-order-v2";
 const CUSTOMER_KEY = "crepe-beirut-customer-v1";
@@ -27,7 +27,7 @@ const itemsWord = (n) => n + " " + T(n === 1 ? "itemOne" : "itemMany");
 // only downloaded if that's missing and the API can't be reached.
 let content = null;
 let index = null;
-const loadDefaults = () => import("./defaults.js?v=202610192040").then((m) => m.DEFAULT_CONTENT);
+const loadDefaults = () => import("./defaults.js?v=202610202151").then((m) => m.DEFAULT_CONTENT);
 let ordersEnabled = false;
 let cart = load(CART_KEY, []);
 if (!Array.isArray(cart)) cart = [];
@@ -927,6 +927,24 @@ function renderAll() {
   for (const step of [applyTheme, renderHeroMedia, renderCurrency, renderTexts, renderFavs, renderMenu, syncType, renderBadges]) {
     try { step(); } catch (e) { console.error("Crepe Beirut: " + step.name + " failed", e); }
   }
+  if (window.cbJump) jumpToSection(window.cbJump);
+}
+
+/* A link like /#menu (or /menu) opens the site at that section. Photos and fonts can still move
+   things as they load, so it lines up again then, unless the visitor has scrolled by themselves. */
+function jumpToSection(id) {
+  window.cbJump = "";
+  const target = document.getElementById(id);
+  if (!target) return;
+  let at = -1;
+  const go = () => {
+    if (at >= 0 && Math.abs(window.scrollY - at) > 2) return;
+    target.scrollIntoView({ behavior: "instant", block: "start" });
+    at = window.scrollY;
+  };
+  go();
+  if (document.readyState !== "complete") window.addEventListener("load", go, { once: true });
+  if (document.fonts) document.fonts.ready.then(go);
 }
 
 (async function boot() {

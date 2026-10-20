@@ -58,6 +58,8 @@ export default {
       if (request.method !== "GET" || !asset.ok) return asset;
       return renderHome(request, env, asset);
     }
+    // A short address for the menu, for Instagram, QR codes and WhatsApp.
+    if (path === "/menu") return Response.redirect(url.origin + "/#menu", 302);
     if (path === "/site.webmanifest") {
       let data = null;
       try { data = await loadContent(env, { cached: true }); } catch { /* the built-in icons */ }

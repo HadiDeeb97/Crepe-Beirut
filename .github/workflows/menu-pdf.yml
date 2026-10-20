@@ -41,7 +41,7 @@ jobs:
         run: node tools/export-menu-pdf.cjs
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/pw/node_modules/playwright
-          SITE_URL: ${{ vars.SITE_URL || 'https://crepe-beirut.hadidib97.workers.dev' }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://crepebeirut.com' }}
           FORCE: ${{ inputs.force && '1' || '' }}
 
       - name: Save the new PDF

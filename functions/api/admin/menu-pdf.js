@@ -10,7 +10,7 @@ import { fail, json } from "../../../lib/server.js";
 const WORKFLOW = "menu-pdf.yml";
 
 function setup(env) {
-  const repo = String(env.GITHUB_REPO || "HadiDeeb97/crepe-beirut").trim();
+  const repo = String(env.GITHUB_REPO || "HadiDeeb97/Crepe-Beirut").trim();
   const token = String(env.GITHUB_TOKEN || env.github_token || "").trim();
   return { repo, token, branch: String(env.GITHUB_BRANCH || "main").trim(), actionsUrl: `https://github.com/${repo}/actions/workflows/${WORKFLOW}` };
 }

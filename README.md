@@ -116,7 +116,7 @@ Menu PDF:
   menu changed. You can start it by hand on GitHub too: *Actions → Menu PDF → Run workflow*.
 - To use the button in the admin, create a fine-grained GitHub token for this repository with
   **Actions: Read and write** and add it to the Worker as a Secret named `GITHUB_TOKEN`
-  (optional: `GITHUB_REPO`, default `HadiDeeb97/crepe-beirut`, and `GITHUB_BRANCH`, default `main`).
+  (optional: `GITHUB_REPO`, default `HadiDeeb97/Crepe-Beirut`, and `GITHUB_BRANCH`, default `main`).
 - **If the live menu can't load** (for example the database reached its free daily limit), visitors
   who were here before see the menu their phone saved, and new visitors see the menu from the last
   export, with a note and a link to the PDF. Orders still go to WhatsApp (they just aren't saved in
