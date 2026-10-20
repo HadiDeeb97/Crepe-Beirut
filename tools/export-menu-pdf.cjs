@@ -16,7 +16,8 @@ const path = require("path");
 const crypto = require("crypto");
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
 
-const SITE = (process.env.SITE_URL || "https://crepebeirut.com").replace(/\/+$/, "");
+// "crepebeirut.com" works too: https:// is added when the address has none.
+const SITE = String(process.env.SITE_URL || "https://crepebeirut.com").trim().replace(/^(?!https?:\/\/)/i, "https://").replace(/\/+$/, "");
 const ROOT = path.join(__dirname, "..");
 const OUT = path.join(ROOT, "public", "menu");
 const FORCE = /^(1|true|yes)$/i.test(process.env.FORCE || "");
