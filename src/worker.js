@@ -52,6 +52,11 @@ function handlerFor(mod, method) {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    // www.crepebeirut.com goes to crepebeirut.com, so there's one address (and one for Google).
+    if (url.hostname.startsWith("www.") && !url.pathname.startsWith("/api/")) {
+      url.hostname = url.hostname.slice(4);
+      return Response.redirect(url.toString(), 301);
+    }
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (path === "/" || path === "/index.html") {
       const asset = await env.ASSETS.fetch(request);
